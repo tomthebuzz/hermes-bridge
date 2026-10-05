@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mirrors the pattern of Hermes' own gateway service
+  (~/Library/LaunchAgents/ai.hermes.gateway.plist) — same supervision
+  model (auto-restart on crash, launch at login), different process.
+
+  BEFORE installing: replace both REPLACE_WITH_* placeholders below —
+  scripts/install_launchd.sh does this for you from a .env file, don't
+  hand-edit this template with real secrets and commit it back.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.futuretree.hermes-bridge</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>REPLACE_WITH_VENV_PYTHON_PATH</string>
+    <string>-m</string>
+    <string>uvicorn</string>
+    <string>app.main:app</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8765</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>REPLACE_WITH_REPO_PATH</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HERMES_BRIDGE_API_KEY</key>
+    <string>REPLACE_WITH_REAL_SECRET</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/hermes-bridge.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/hermes-bridge.error.log</string>
+</dict>
+</plist>
