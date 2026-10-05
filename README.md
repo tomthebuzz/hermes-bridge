@@ -1,5 +1,8 @@
 # hermes-bridge
 
+**Deploying all three repos together? Start at [RUNBOOK.md](RUNBOOK.md)
+— step-by-step order, verification commands, and rollback.**
+
 Thin authenticated HTTP bridge exposing the `hermes` CLI's write-paths
 (Kanban writes, Telegram sends) over HTTP, for callers that can't exec the
 CLI directly — Docker containers on the Mac mini today, K8s pods later.
