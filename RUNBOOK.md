@@ -18,11 +18,14 @@ Repos, in the order you deploy them:
 
 Everything in all three repos was built and tested against **synthetic
 data and a stub `hermes` CLI** in a sandbox with no access to a real
-Hermes install. Every repo's README says this plainly, and it's worth
-repeating here: the HTTP layer, auth, RBAC, routing, and error handling
-are proven. The actual `hermes` CLI flag shapes and the real `kanban.db`
-schema are NOT yet confirmed against a live install. Step 1 below is where
-that gets settled for real — do not skip it or assume it'll just work.
+Hermes install. The HTTP layer, auth, RBAC, routing, and error handling
+are proven. The live Mac mini Kanban schema has now been checked and the
+readers in `hermes-wrappers/app/kanban_read.py` and
+`hermes-team-bots/cron/kanban_read.py` have been patched for it
+(`tasks` has no `updated_at`; `task_comments.body` is aliased as `text`).
+The remaining unconfirmed piece is the exact `hermes kanban ...` CLI flag
+shape against your installed version — Step 1's bridge smoke test is where
+that gets settled for real.
 
 ---
 
@@ -32,14 +35,15 @@ On the Hermes host:
 
 ```bash
 hermes doctor                      # confirm base install is healthy
-sqlite3 ~/.hermes/kanban.db ".schema"   # inspect the REAL schema
+sqlite3 ~/.hermes/kanban.db ".schema"   # already checked: readers patched for live schema
 ```
 
-Compare the real schema against what `hermes-wrappers/app/kanban_read.py`
-and `hermes-team-bots/cron/kanban_read.py` assume (a `tasks` table with
-id/title/body/status/tenant/assignee/created_at/updated_at, a
-`task_comments` table). If columns differ, fix those two files first —
-everything downstream reads through them.
+The reader patches assume exactly the live schema pasted from the Mac mini:
+`tasks` has no `updated_at`, comments are stored in `task_comments.body`,
+and `task_events.created_at` is available to synthesize an `updated_at`
+sort key. If Hermes changes that schema later, re-check these two files:
+`hermes-wrappers/app/kanban_read.py` and
+`hermes-team-bots/cron/kanban_read.py`.
 
 ```bash
 hermes kanban create --help         # confirm the real CLI flag shapes
