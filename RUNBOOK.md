@@ -293,6 +293,10 @@ Archive the demo records after testing with `hermes kanban archive <id>`.
 
 If no Telegram DM arrives:
 
+The Bridge sends with Hermes' current CLI form, `hermes send --to telegram:<chat_id> <message>`.
+After pulling a Bridge update, rerun `scripts/install_launchd.sh` with the saved
+Bridge API key so the LaunchAgent reloads the updated messaging command. Check
+`/tmp/hermes-bridge.error.log` for any remaining CLI error.
 ```bash
 # The API now returns 502 when the bridge reports a send failure.
 curl -s -X POST http://127.0.0.1:8080/login \

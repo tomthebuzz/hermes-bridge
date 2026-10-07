@@ -64,6 +64,11 @@ requirements. The API-key-protected `/diagnostics` endpoint reports the
 configured CLI path and whether it is executable. Re-run the installer after
 pulling bridge updates, reusing the existing API key.
 
+The messaging domain follows the current Hermes CLI form
+`hermes send --to telegram:<chat_id> <message>`; it does not use the obsolete
+`hermes send telegram --chat-id ...` form. See RUNBOOK.md's Telegram test and
+troubleshooting section.
+
 Reads are NOT proxied through here — team-portal and the cron scripts
 already read `kanban.db` directly via a bind-mounted file (SQLite WAL is
 safe for concurrent external readers). This bridge is write-path only,
