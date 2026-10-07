@@ -248,10 +248,18 @@ read-only. IDs remain admin-managed because changing an account identifier
 without verifying control of that Telegram account could transfer access.
 The Docker bind mount for `users.yaml` is writable so the username update
 persists. Kanban filters include team, assignee/My Items, due-date bucket,
-and priority. Clicking a card opens details; title/body/priority/assignee and
-comments can be edited within the user's tenant scope. Drag/drop calls the
-bridge/CLI transition commands; illegal transitions or unauthorized review
-moves return an error rather than changing SQLite directly.
+and priority. Every workflow column has a **+** create-card action and cards
+open a detail modal. Title/body/priority/assignee and comments are editable
+within the user's tenant scope. Drag/drop calls CLI-backed Hermes transitions;
+review moves are allowed to scoped users and completing a card remains limited
+to authorized reviewers. Hermes reserves Todo for dependency-gated work, so a
+standalone card requested from Todo lands in Ready with a notice.
+
+The Artifact Review cards have an **Upload file** control (also available in
+the details modal). Uploads are limited to 25 MB, stored through
+`hermes kanban attach`, and shown as authorized download links. The portal
+mounts the host attachment folder read-only; attached files are available to
+Hermes workers on the host.
 
 To add three marked test artifacts to an existing tenant for exercising
 comment/approve/request-changes operations:
@@ -265,10 +273,11 @@ KANBAN_DB_PATH="$HOME/.hermes/kanban.db" \
 ```
 
 They are real `review`-status cards marked `DEMO`, but their body clearly says
-the content is synthetic. `--confirm` is required. The script skips existing
-demo titles. Verify the logged-in user has marketing review permission in
-`users.yaml`; then try comment, approve, and request changes in the UI. Archive
-the demo records after testing with `hermes kanban archive <id>`.
+the content is synthetic. `--confirm` is required. The script skips cards
+already in review and repairs partially seeded demo cards by reattempting the
+review transition. Verify the logged-in user has marketing review permission
+in `users.yaml`; then try comment, approve, and request changes in the UI.
+Archive the demo records after testing with `hermes kanban archive <id>`.
 
 If no Telegram DM arrives:
 
