@@ -134,9 +134,9 @@ This step is NOT automatable — BotFather tokens are secrets only you can
 create. After each profile:
 
 ```bash
-hermes -p tech tools                         # confirm the scoped toolset took
-hermes -p tech gateway start
-hermes -p tech gateway status
+hermes -p futuretree-tech-bot tools                         # confirm the scoped toolset took
+hermes -p futuretree-tech-bot gateway start
+hermes -p futuretree-tech-bot gateway status
 ```
 
 Once all 6 are wired, fill in `config/tenants.yaml`'s
