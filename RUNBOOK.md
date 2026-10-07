@@ -186,8 +186,9 @@ python3 cron/artifact-sla-sweep.py --dry-run   # confirm it sees real data befor
 git clone git@github.com:tomthebuzz/hermes-wrappers.git
 cd hermes-wrappers
 cp users.yaml.example users.yaml
-# edit users.yaml: real Telegram numeric user IDs (via @userinfobot) for
-# all 8-12 wider-team people + their tenant/role/approval scopes
+# edit users.yaml: real Telegram @usernames, numeric user IDs/chat IDs
+# (via @userinfobot), tenant/role/approval scopes for all 8-12 wider-team
+# people. UI login is by @username; delivery is still best by numeric chat_id.
 ```
 
 ```bash
@@ -208,10 +209,30 @@ curl http://127.0.0.1:8080/healthz
 ```
 
 Then from a browser: `http://127.0.0.1:8080`, log in with a real Telegram
-user ID from `users.yaml`, confirm the magic-link DM arrives via Telegram
+`@username` from `users.yaml`, confirm the magic-link DM arrives via Telegram
 (this proves the bridge's `/messaging/telegram/send` route works against
 real Telegram, not just the stub), click through, and confirm the Kanban
-board + Artifact Review views show real, tenant-scoped data.
+board renders as columns (Triage/Todo/Ready/In Progress/Review/Blocked/Done)
+and Artifact Review shows real, tenant-scoped data.
+
+If no Telegram DM arrives:
+
+```bash
+# The API now returns 502 when the bridge reports a send failure.
+curl -s -X POST http://127.0.0.1:8080/login \
+  -H 'Content-Type: application/json' -d '{"login":"@yourusername"}' | python3 -m json.tool
+
+# Check bridge logs and verify direct bridge send.
+tail -100 /tmp/hermes-bridge.log
+tail -100 /tmp/hermes-bridge.error.log
+curl -s -X POST http://127.0.0.1:8765/messaging/telegram/send \
+  -H "X-API-Key: $HERMES_BRIDGE_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"chat_id":"<numeric chat/user id>","text":"bridge telegram smoke test"}'
+```
+
+For DMs, make sure the user has started the bot at least once. Telegram bots
+usually cannot initiate a DM to an arbitrary `@username`; keep `telegram_chat_id`
+numeric even though the portal login field is handle-first.
 
 ---
 
