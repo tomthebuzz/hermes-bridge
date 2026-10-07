@@ -8,6 +8,8 @@ class CreateTaskRequest(BaseModel):
     tenant: str
     body: str = ""
     assignee: str | None = None
+    status: str = "running"
+    priority: int = 0
 
 
 class EditTaskRequest(BaseModel):

@@ -69,14 +69,40 @@ This has to come first — both other repos call it.
 ```bash
 git clone git@github.com:tomthebuzz/hermes-bridge.git
 cd hermes-bridge
-export HERMES_BRIDGE_API_KEY=$(openssl rand -hex 32)
+export HERMES_BRIDGE_API_KEY=$(openssl rand -hex 32)   # first install only; reuse saved key on upgrades
+export HERMES_BRIDGE_HERMES_BIN="$(command -v hermes)"
 bash scripts/install_launchd.sh
 ```
 
-This creates a `.venv`, installs dependencies, and registers a launchd
-service (same supervision pattern as Hermes' own gateway). The script
-prints the generated API key at the end — **save it somewhere durable**,
-every other component needs it.
+This creates/updates a `.venv`, installs current requirements, and registers
+a launchd service (same supervision pattern as Hermes' own gateway). It
+resolves the absolute `hermes` executable path from your shell and stores it
+as `HERMES_BRIDGE_HERMES_BIN` for launchd. The script prints the API key —
+save it somewhere durable, every other component needs it. On upgrades,
+export the existing key before rerunning this script; don't generate a new one.
+
+For a code update after initial install, pull the repo, preserve the existing
+API key, and reinstall/reload the launchd plist so both new dependencies and
+the absolute CLI path are refreshed:
+
+```bash
+git pull
+export HERMES_BRIDGE_API_KEY="<paste the existing saved key>"
+export HERMES_BRIDGE_HERMES_BIN="$(command -v hermes)"
+bash scripts/install_launchd.sh
+curl http://127.0.0.1:8765/healthz
+```
+
+Then verify the bridge can run the CLI:
+
+```bash
+curl -s -X POST http://127.0.0.1:8765/kanban/tasks/t_DEMO_ID/comments \\
+  -H "X-API-Key: $HERMES_BRIDGE_API_KEY" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"text":"Bridge update smoke check","author":"operator"}'
+```
+
+Replace `t_DEMO_ID` with an existing demo task ID from `hermes kanban list`. This adds a harmless test comment and confirms launchd can execute Hermes CLI commands. Do not use a new API key here unless you also update every consumer's secret.
 
 Verify:
 
@@ -192,7 +218,7 @@ cp users.yaml.example users.yaml
 ```
 
 ```bash
-export HERMES_BRIDGE_API_KEY=<the key from Step 1>
+export HERMES_BRIDGE_API_KEY="PASTE_YOUR_SAVED_KEY"
 export SESSION_SECRET=$(openssl rand -hex 32)
 export PORTAL_BASE_URL="http://YOUR-MAC-MINI-MAGICDNS-NAME:8080"
 docker compose -f docker/docker-compose.yml up --build -d
@@ -232,7 +258,7 @@ comment/approve/request-changes operations:
 
 ```bash
 cd hermes-wrappers
-export HERMES_BRIDGE_API_KEY=<the key from Step 1>
+export HERMES_BRIDGE_API_KEY="PASTE_YOUR_SAVED_KEY"
 export HERMES_BRIDGE_URL=http://127.0.0.1:8765
 KANBAN_DB_PATH="$HOME/.hermes/kanban.db" \
   python3 scripts/seed_demo_artifacts.py --confirm --tenant marketing

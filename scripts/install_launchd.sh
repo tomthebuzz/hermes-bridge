@@ -8,12 +8,19 @@ PLIST_SRC="${REPO_ROOT}/launchd/com.hermes-team.bridge.plist"
 PLIST_DST="${HOME}/Library/LaunchAgents/com.hermes-team.bridge.plist"
 
 if [ ! -d "${REPO_ROOT}/.venv" ]; then
-  echo "No .venv found. Creating one and installing requirements..."
+  echo "No .venv found. Creating one..."
   python3 -m venv "${REPO_ROOT}/.venv"
-  "${REPO_ROOT}/.venv/bin/pip" install -q -r "${REPO_ROOT}/requirements.txt"
 fi
+"${REPO_ROOT}/.venv/bin/pip" install -q -r "${REPO_ROOT}/requirements.txt"
 
 VENV_PYTHON="${REPO_ROOT}/.venv/bin/python3"
+HERMES_BIN_PATH="${HERMES_BRIDGE_HERMES_BIN:-$(type -P hermes || true)}"
+if [ -z "${HERMES_BIN_PATH}" ] || [ ! -x "${HERMES_BIN_PATH}" ]; then
+  echo "Could not resolve an executable Hermes CLI path from this shell."
+  echo "Run 'command -v hermes' in your normal Hermes terminal and rerun with:"
+  echo "  HERMES_BRIDGE_HERMES_BIN=/absolute/path/to/hermes bash scripts/install_launchd.sh"
+  exit 1
+fi
 
 if [ -z "${HERMES_BRIDGE_API_KEY:-}" ]; then
   echo "Set HERMES_BRIDGE_API_KEY in your shell before running this script, e.g.:"
@@ -24,6 +31,7 @@ fi
 sed -e "s#REPLACE_WITH_VENV_PYTHON_PATH#${VENV_PYTHON}#" \
     -e "s#REPLACE_WITH_REPO_PATH#${REPO_ROOT}#" \
     -e "s#REPLACE_WITH_REAL_SECRET#${HERMES_BRIDGE_API_KEY}#" \
+    -e "s#REPLACE_WITH_HERMES_BIN_PATH#${HERMES_BIN_PATH}#" \
     "${PLIST_SRC}" > "${PLIST_DST}"
 
 launchctl unload "${PLIST_DST}" 2>/dev/null || true

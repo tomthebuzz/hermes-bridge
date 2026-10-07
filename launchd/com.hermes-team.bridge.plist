@@ -5,9 +5,10 @@
   (~/Library/LaunchAgents/ai.hermes.gateway.plist) — same supervision
   model (auto-restart on crash, launch at login), different process.
 
-  BEFORE installing: replace both REPLACE_WITH_* placeholders below —
-  scripts/install_launchd.sh does this for you from a .env file, don't
-  hand-edit this template with real secrets and commit it back.
+  BEFORE installing: replace the placeholders below —
+  scripts/install_launchd.sh fills them with the current venv paths, the
+  absolute Hermes CLI path, and API key. Don't commit a generated plist with
+  real secrets back to the repo.
 -->
 <plist version="1.0">
 <dict>
@@ -33,6 +34,8 @@
   <dict>
     <key>HERMES_BRIDGE_API_KEY</key>
     <string>REPLACE_WITH_REAL_SECRET</string>
+    <key>HERMES_BRIDGE_HERMES_BIN</key>
+    <string>REPLACE_WITH_HERMES_BIN_PATH</string>
   </dict>
 
   <key>RunAtLoad</key>

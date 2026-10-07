@@ -54,8 +54,13 @@ exact same three-file shape, plus one `include_router()` line in
 
 This bridge also exposes authenticated task-edit and transition routes for
 Team Portal: `PATCH /kanban/tasks/{id}` edits title/body/priority through
-`hermes kanban edit`; `POST /kanban/tasks/{id}/transition` maps safe board
-moves to Hermes CLI commands. It never updates SQLite directly.
+`hermes kanban edit`; `POST /kanban/tasks/{id}/transition` maps board moves
+to Hermes CLI commands; and multipart `POST /kanban/tasks/{id}/attachments`
+uses `hermes kanban attach` (25 MB cap). They never update SQLite directly.
+The launchd installer resolves the absolute Hermes CLI path and writes it as
+`HERMES_BRIDGE_HERMES_BIN`, since launchd does not inherit an interactive
+shell's PATH. Re-run the installer after pulling bridge updates, reusing the
+existing API key.
 
 Reads are NOT proxied through here — team-portal and the cron scripts
 already read `kanban.db` directly via a bind-mounted file (SQLite WAL is
