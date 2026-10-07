@@ -18,6 +18,9 @@ native service definition (same pattern as Hermes' own gateway service).
 """
 from __future__ import annotations
 
+import os
+import shutil
+
 from fastapi import Depends, FastAPI
 
 from .auth import require_api_key
@@ -33,6 +36,17 @@ app = FastAPI(
     description="Authenticated bridge exposing hermes CLI write-paths over HTTP.",
     version="0.1.0",
 )
+
+
+@app.get("/diagnostics", dependencies=[Depends(require_api_key)])
+def diagnostics():
+    binary = settings.hermes_bin
+    resolved = shutil.which(binary) if not os.path.isabs(binary) else binary
+    return {
+        "hermes_bin": binary,
+        "resolved_path": resolved,
+        "executable": bool(resolved and os.path.isfile(resolved) and os.access(resolved, os.X_OK)),
+    }
 
 
 @app.get("/healthz")

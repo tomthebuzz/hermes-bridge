@@ -34,8 +34,16 @@ sed -e "s#REPLACE_WITH_VENV_PYTHON_PATH#${VENV_PYTHON}#" \
     -e "s#REPLACE_WITH_HERMES_BIN_PATH#${HERMES_BIN_PATH}#" \
     "${PLIST_SRC}" > "${PLIST_DST}"
 
-launchctl unload "${PLIST_DST}" 2>/dev/null || true
-launchctl load "${PLIST_DST}"
+if command -v plutil >/dev/null 2>&1; then
+  plutil -lint "${PLIST_DST}"
+fi
+
+LAUNCHD_DOMAIN="gui/$(id -u)"
+LAUNCHD_SERVICE="${LAUNCHD_DOMAIN}/com.hermes-team.bridge"
+launchctl bootout "${LAUNCHD_DOMAIN}" "${PLIST_DST}" 2>/dev/null || true
+launchctl bootstrap "${LAUNCHD_DOMAIN}" "${PLIST_DST}"
+launchctl enable "${LAUNCHD_SERVICE}" 2>/dev/null || true
+launchctl kickstart -k "${LAUNCHD_SERVICE}"
 
 echo "Installed. Check status with:"
 echo "  launchctl list | grep hermes-bridge"

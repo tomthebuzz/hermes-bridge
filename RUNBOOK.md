@@ -110,6 +110,10 @@ Verify:
 curl http://127.0.0.1:8765/healthz
 # {"ok": true}
 
+curl -s http://127.0.0.1:8765/diagnostics \
+  -H "X-API-Key: $HERMES_BRIDGE_API_KEY"
+# confirm `executable` is true and `resolved_path` is the same path as `command -v hermes`
+
 curl -X POST http://127.0.0.1:8765/kanban/tasks \
   -H "X-API-Key: $HERMES_BRIDGE_API_KEY" -H "Content-Type: application/json" \
   -d '{"title":"bridge smoke test","tenant":"tech"}'

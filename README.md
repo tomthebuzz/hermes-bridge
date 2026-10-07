@@ -59,8 +59,10 @@ to Hermes CLI commands; and multipart `POST /kanban/tasks/{id}/attachments`
 uses `hermes kanban attach` (25 MB cap). They never update SQLite directly.
 The launchd installer resolves the absolute Hermes CLI path and writes it as
 `HERMES_BRIDGE_HERMES_BIN`, since launchd does not inherit an interactive
-shell's PATH. Re-run the installer after pulling bridge updates, reusing the
-existing API key.
+shell's PATH. It bootouts/reloads the LaunchAgent on updates and refreshes
+requirements. The API-key-protected `/diagnostics` endpoint reports the
+configured CLI path and whether it is executable. Re-run the installer after
+pulling bridge updates, reusing the existing API key.
 
 Reads are NOT proxied through here — team-portal and the cron scripts
 already read `kanban.db` directly via a bind-mounted file (SQLite WAL is
