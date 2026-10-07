@@ -55,7 +55,7 @@ Compare against `hermes-bridge/app/domains/*/service.py`. Fix the
 this was written against.
 
 You'll also want, before starting:
-- Python 3.10+ and `git` on the host
+- Python 3.10+ and `git` on the host. Python 3.14 is supported by the current pins (`pydantic>=2.13`); if you ever see PyO3/pydantic-core build errors, pull latest and recreate `.venv`.
 - Docker Desktop installed (for Step 4, team-portal)
 - A Telegram account with access to @BotFather and @userinfobot (for the
   bot roster's Telegram wiring later, Step 3)
