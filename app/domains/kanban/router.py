@@ -8,6 +8,8 @@ from .schemas import (
     BridgeResult,
     CommentRequest,
     CreateTaskRequest,
+    EditTaskRequest,
+    TransitionRequest,
     PublishForReviewRequest,
     RejectRequest,
     ReviewRequest,
@@ -25,6 +27,18 @@ def _respond(result) -> BridgeResult:
 @router.post("/tasks", response_model=BridgeResult)
 def create_task(body: CreateTaskRequest) -> BridgeResult:
     return _respond(service.create_task(body.title, body.tenant, body.body, body.assignee))
+
+
+@router.patch("/tasks/{task_id}", response_model=BridgeResult)
+def edit_task(task_id: str, body: EditTaskRequest) -> BridgeResult:
+    if body.title is None and body.body is None and body.priority is None:
+        raise HTTPException(status_code=422, detail="At least one editable field is required")
+    return _respond(service.edit_task(task_id, body.title, body.body, body.priority))
+
+
+@router.post("/tasks/{task_id}/transition", response_model=BridgeResult)
+def transition_task(task_id: str, body: TransitionRequest) -> BridgeResult:
+    return _respond(service.transition_task(task_id, body.status, body.reason))
 
 
 @router.post("/tasks/{task_id}/claim", response_model=BridgeResult)

@@ -52,6 +52,11 @@ attaching files) means a new `domains/<name>/` subpackage following the
 exact same three-file shape, plus one `include_router()` line in
 `main.py`. Nothing else changes — that's the whole point of the layering.
 
+This bridge also exposes authenticated task-edit and transition routes for
+Team Portal: `PATCH /kanban/tasks/{id}` edits title/body/priority through
+`hermes kanban edit`; `POST /kanban/tasks/{id}/transition` maps safe board
+moves to Hermes CLI commands. It never updates SQLite directly.
+
 Reads are NOT proxied through here — team-portal and the cron scripts
 already read `kanban.db` directly via a bind-mounted file (SQLite WAL is
 safe for concurrent external readers). This bridge is write-path only,

@@ -10,6 +10,37 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     return run_hermes(*args)
 
 
+def edit_task(task_id: str, title: str | None = None, body: str | None = None,
+              priority: int | None = None) -> CLIResult:
+    args = ["kanban", "edit", task_id]
+    if title is not None:
+        args += ["--title", title]
+    if body is not None:
+        args += ["--body", body]
+    if priority is not None:
+        args += ["--priority", str(priority)]
+    return run_hermes(*args)
+
+
+def transition_task(task_id: str, status: str, reason: str = "Moved from Team Portal") -> CLIResult:
+    """Use supported CLI transitions; do not update SQLite status directly."""
+    if status == "running":
+        return run_hermes("kanban", "claim", task_id)
+    if status == "ready":
+        return run_hermes("kanban", "promote", task_id)
+    if status == "todo":
+        return run_hermes("kanban", "unblock", task_id)
+    if status == "blocked":
+        return run_hermes("kanban", "block", task_id, reason)
+    if status == "review":
+        return publish_artifact_for_review(task_id, "Moved to review from Team Portal")
+    if status == "done":
+        return approve_artifact(task_id, "Completed from Team Portal")
+    if status == "archived":
+        return run_hermes("kanban", "archive", task_id)
+    return CLIResult(ok=False, stdout="", stderr=f"Unsupported or unsafe status transition: {status}")
+
+
 def claim_task(task_id: str) -> CLIResult:
     return run_hermes("kanban", "claim", task_id)
 

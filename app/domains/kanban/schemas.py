@@ -10,6 +10,17 @@ class CreateTaskRequest(BaseModel):
     assignee: str | None = None
 
 
+class EditTaskRequest(BaseModel):
+    title: str | None = None
+    body: str | None = None
+    priority: int | None = None
+
+
+class TransitionRequest(BaseModel):
+    status: str
+    reason: str = "Moved from Team Portal"
+
+
 class AssignRequest(BaseModel):
     assignee: str
 

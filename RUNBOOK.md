@@ -194,6 +194,7 @@ cp users.yaml.example users.yaml
 ```bash
 export HERMES_BRIDGE_API_KEY=<the key from Step 1>
 export SESSION_SECRET=$(openssl rand -hex 32)
+export PORTAL_BASE_URL="http://YOUR-MAC-MINI-MAGICDNS-NAME:8080"
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
@@ -214,6 +215,34 @@ Then from a browser: `http://127.0.0.1:8080`, log in with a real Telegram
 real Telegram, not just the stub), click through, and confirm the Kanban
 board renders as columns (Triage/Todo/Ready/In Progress/Review/Blocked/Done)
 and Artifact Review shows real, tenant-scoped data.
+
+The header includes **Profile** and **Log out**. Profile lets each user update
+their Telegram username and shows their numeric Telegram user ID/chat ID as
+read-only. IDs remain admin-managed because changing an account identifier
+without verifying control of that Telegram account could transfer access.
+The Docker bind mount for `users.yaml` is writable so the username update
+persists. Kanban filters include team, assignee/My Items, due-date bucket,
+and priority. Clicking a card opens details; title/body/priority/assignee and
+comments can be edited within the user's tenant scope. Drag/drop calls the
+bridge/CLI transition commands; illegal transitions or unauthorized review
+moves return an error rather than changing SQLite directly.
+
+To add three marked test artifacts to an existing tenant for exercising
+comment/approve/request-changes operations:
+
+```bash
+cd hermes-wrappers
+export HERMES_BRIDGE_API_KEY=<the key from Step 1>
+export HERMES_BRIDGE_URL=http://127.0.0.1:8765
+KANBAN_DB_PATH="$HOME/.hermes/kanban.db" \
+  python3 scripts/seed_demo_artifacts.py --confirm --tenant marketing
+```
+
+They are real `review`-status cards marked `DEMO`, but their body clearly says
+the content is synthetic. `--confirm` is required. The script skips existing
+demo titles. Verify the logged-in user has marketing review permission in
+`users.yaml`; then try comment, approve, and request changes in the UI. Archive
+the demo records after testing with `hermes kanban archive <id>`.
 
 If no Telegram DM arrives:
 
