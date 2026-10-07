@@ -1,4 +1,4 @@
-# Deployment Runbook — FutureTree Team Tools
+# Deployment Runbook — Team Tools
 
 Step-by-step deployment of all three repos, in dependency order, on the
 real Hermes host (the Mac mini, or wherever Hermes actually lives). This
@@ -134,9 +134,9 @@ This step is NOT automatable — BotFather tokens are secrets only you can
 create. After each profile:
 
 ```bash
-hermes -p futuretree-tech-bot tools                         # confirm the scoped toolset took
-hermes -p futuretree-tech-bot gateway start
-hermes -p futuretree-tech-bot gateway status
+hermes -p tech tools                         # confirm the scoped toolset took
+hermes -p tech gateway start
+hermes -p tech gateway status
 ```
 
 Once all 6 are wired, fill in `config/tenants.yaml`'s
@@ -242,7 +242,7 @@ docker compose -f hermes-wrappers/docker/docker-compose.yml down
 for p in tech marketing sales finance ops leadership; do hermes -p $p gateway stop; done
 
 # hermes-bridge
-launchctl unload ~/Library/LaunchAgents/com.futuretree.hermes-bridge.plist
+launchctl unload ~/Library/LaunchAgents/com.hermes-team.bridge.plist
 
 # Cron jobs
 hermes cron pause artifact-sla-sweep

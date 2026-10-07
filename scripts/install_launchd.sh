@@ -4,8 +4,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLIST_SRC="${REPO_ROOT}/launchd/com.futuretree.hermes-bridge.plist"
-PLIST_DST="${HOME}/Library/LaunchAgents/com.futuretree.hermes-bridge.plist"
+PLIST_SRC="${REPO_ROOT}/launchd/com.hermes-team.bridge.plist"
+PLIST_DST="${HOME}/Library/LaunchAgents/com.hermes-team.bridge.plist"
 
 if [ ! -d "${REPO_ROOT}/.venv" ]; then
   echo "No .venv found. Creating one and installing requirements..."

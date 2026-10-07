@@ -12,7 +12,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.futuretree.hermes-bridge</string>
+  <string>com.hermes-team.bridge</string>
 
   <key>ProgramArguments</key>
   <array>
