@@ -93,7 +93,15 @@ bash scripts/install_launchd.sh
 curl http://127.0.0.1:8765/healthz
 ```
 
-Then verify the bridge can run the CLI:
+If `/diagnostics` returns `404`, the request is reaching an older Bridge process
+rather than the current app. The installer now unloads prior branded Bridge
+LaunchAgents before bootstrapping the generic service. If the port is still
+held, inspect rather than killing blindly:
+
+```bash
+launchctl list | grep -E 'hermes.*bridge'
+lsof -nP -iTCP:8765 -sTCP:LISTEN
+```
 
 ```bash
 curl -s -X POST http://127.0.0.1:8765/kanban/tasks/t_DEMO_ID/comments \\

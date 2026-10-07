@@ -40,10 +40,22 @@ fi
 
 LAUNCHD_DOMAIN="gui/$(id -u)"
 LAUNCHD_SERVICE="${LAUNCHD_DOMAIN}/com.hermes-team.bridge"
+# Remove older bridge labels too; one may still own port 8765 and shadow this app.
+for LEGACY_LABEL in com.futuretree.hermes-bridge com.hermes-team.hermes-bridge; do
+  launchctl bootout "${LAUNCHD_DOMAIN}/${LEGACY_LABEL}" 2>/dev/null || true
+  LEGACY_PLIST="${HOME}/Library/LaunchAgents/${LEGACY_LABEL}.plist"
+  if [ -f "${LEGACY_PLIST}" ]; then
+    launchctl bootout "${LAUNCHD_DOMAIN}" "${LEGACY_PLIST}" 2>/dev/null || true
+    mv "${LEGACY_PLIST}" "${LEGACY_PLIST}.disabled"
+  fi
+done
 launchctl bootout "${LAUNCHD_DOMAIN}" "${PLIST_DST}" 2>/dev/null || true
 launchctl bootstrap "${LAUNCHD_DOMAIN}" "${PLIST_DST}"
 launchctl enable "${LAUNCHD_SERVICE}" 2>/dev/null || true
 launchctl kickstart -k "${LAUNCHD_SERVICE}"
+DIAGNOSTICS="$(curl --retry 10 --retry-delay 1 --retry-connrefused -fsS \
+  -H "X-API-Key: ${HERMES_BRIDGE_API_KEY}" http://127.0.0.1:8765/diagnostics)"
+"${REPO_ROOT}/.venv/bin/python3" -c 'import json,sys; d=json.loads(sys.argv[1]); print("Hermes CLI:",d.get("resolved_path")); sys.exit(0 if d.get("executable") else 1)' "${DIAGNOSTICS}"
 
 echo "Installed. Check status with:"
 echo "  launchctl list | grep hermes-bridge"
