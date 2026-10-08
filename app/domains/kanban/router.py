@@ -38,7 +38,7 @@ def edit_task(task_id: str, body: EditTaskRequest) -> BridgeResult:
 
 @router.post("/tasks/{task_id}/transition", response_model=BridgeResult)
 def transition_task(task_id: str, body: TransitionRequest) -> BridgeResult:
-    return _respond(service.transition_task(task_id, body.status, body.reason))
+    return _respond(service.transition_task(task_id, body.status, body.reason, body.current_status))
 
 
 @router.post("/tasks/{task_id}/claim", response_model=BridgeResult)

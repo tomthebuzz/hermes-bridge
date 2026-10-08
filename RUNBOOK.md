@@ -262,16 +262,18 @@ The Docker bind mount for `users.yaml` is writable so the username update
 persists. Kanban filters include team, assignee/My Items, due-date bucket,
 and priority. Every workflow column has a **+** create-card action and cards
 open a detail modal. Title/body/priority/assignee and comments are editable
-within the user's tenant scope. Drag/drop calls CLI-backed Hermes transitions;
-review moves are allowed to scoped users and completing a card remains limited
-to authorized reviewers. Hermes reserves Todo for dependency-gated work, so a
-standalone card requested from Todo lands in Ready with a notice.
+within the user's tenant scope. Drag/drop follows Hermes' state machine:
+Review → In Progress first reopens review, and In Progress → Ready reclaims
+its active worker run. Invalid/dependency-blocked moves show an explanation;
+no raw status SQL updates occur. Hermes reserves Todo for dependency-gated
+work, so a standalone card requested from Todo lands in Ready with a notice.
 
 The Artifact Review cards have an **Upload file** control (also available in
 the details modal). Uploads are limited to 25 MB, stored through
-`hermes kanban attach`, and shown as authorized download links. The portal
-mounts the host attachment folder read-only; attached files are available to
-Hermes workers on the host.
+`hermes kanban attach`, and shown as authorized links. PDF/image/text files
+preview inline with a separate download link. The portal mounts the host
+attachment folder read-only; attached files are available to Hermes workers
+on the host.
 
 To add three marked test artifacts to an existing tenant for exercising
 comment/approve/request-changes operations:

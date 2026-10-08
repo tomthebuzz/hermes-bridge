@@ -21,6 +21,7 @@ class EditTaskRequest(BaseModel):
 class TransitionRequest(BaseModel):
     status: str
     reason: str = "Moved from Team Portal"
+    current_status: str | None = None
 
 
 class AssignRequest(BaseModel):

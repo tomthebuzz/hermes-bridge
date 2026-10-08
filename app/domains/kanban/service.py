@@ -84,23 +84,123 @@ def edit_task(task_id: str, title: str | None = None, body: str | None = None,
     return run_hermes(*args)
 
 
-def transition_task(task_id: str, status: str, reason: str = "Moved from Team Portal") -> CLIResult:
-    """Use supported CLI transitions; do not update SQLite status directly."""
+def transition_task(task_id: str, status: str, reason: str = "Moved from Team Portal",
+                    current_status: str | None = None) -> CLIResult:
+    """Map board drag/drop to Hermes' legal lifecycle verbs; never write SQL."""
+    if current_status == status:
+        return CLIResult(True, f"Task {task_id} is already {status}", "", 0)
+
     if status == "running":
+        if current_status == "review":
+            reopened = run_hermes("kanban", "reopen-review", task_id, "--reason", reason)
+            if not reopened.ok:
+                return CLIResult(False, "", _friendly_transition_error(reopened.stderr, "review", "running"), reopened.returncode)
+            claimed = run_hermes("kanban", "claim", task_id)
+            if not claimed.ok:
+                return CLIResult(False, reopened.stdout,
+                                 "Review was reopened, but the task could not start. It may be waiting on unfinished parent tasks; it is now back in Ready/Todo.",
+                                 claimed.returncode)
+            return claimed
+        if current_status in {"blocked", "todo"}:
+            promoted = run_hermes("kanban", "promote", task_id)
+            if not promoted.ok:
+                return CLIResult(False, "", _friendly_transition_error(promoted.stderr, current_status, "running"), promoted.returncode)
         return run_hermes("kanban", "claim", task_id)
+
     if status == "ready":
-        return run_hermes("kanban", "promote", task_id)
+        if current_status == "running":
+            result = run_hermes("kanban", "reclaim", task_id, "--reason", reason)
+        elif current_status == "review":
+            result = run_hermes("kanban", "reopen-review", task_id, "--reason", reason)
+        elif current_status in {"todo", "blocked"}:
+            result = run_hermes("kanban", "promote", task_id, reason)
+        else:
+            return CLIResult(False, "", f"Cannot move a {current_status or 'unknown-state'} task to Ready through the Hermes workflow.", 2)
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
     if status == "todo":
-        return run_hermes("kanban", "unblock", task_id)
+        if current_status == "review":
+            result = run_hermes("kanban", "reopen-review", task_id, "--reason", reason)
+        elif current_status == "blocked":
+            result = run_hermes("kanban", "unblock", task_id, "--reason", reason)
+        elif current_status == "running":
+            result = run_hermes("kanban", "reclaim", task_id, "--reason", reason)
+            if result.ok:
+                return CLIResult(True, result.stdout,
+                                 "The active claim was released to Ready. Hermes reserves Todo for dependency-gated tasks.", 0)
+        else:
+            return CLIResult(False, "", "Hermes reserves Todo for tasks waiting on unfinished dependencies. Use Ready for standalone work.", 2)
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
     if status == "blocked":
-        return run_hermes("kanban", "block", task_id, reason)
+        if current_status == "running":
+            result = run_hermes("kanban", "block", task_id, reason)
+        elif current_status in {"ready", "todo"}:
+            if current_status == "todo":
+                return CLIResult(False, "", "This task is already waiting on dependencies in Todo; resolve or update its parent links instead of blocking it.", 2)
+            result = run_hermes("kanban", "block", task_id, reason)
+        else:
+            return CLIResult(False, "", f"Cannot block a {current_status or 'unknown-state'} task from the board. Only Ready or In Progress tasks can be blocked.", 2)
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
     if status == "review":
-        return publish_artifact_for_review(task_id, "Moved to review from Team Portal")
+        if current_status == "review":
+            return CLIResult(True, f"Task {task_id} is already in Review", "", 0)
+        if current_status in {"blocked", "todo"}:
+            promoted = run_hermes("kanban", "promote", task_id)
+            if not promoted.ok:
+                return CLIResult(False, "", _friendly_transition_error(promoted.stderr, current_status, status), promoted.returncode)
+        result = publish_artifact_for_review(task_id, "Moved to Review from Team Portal")
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
     if status == "done":
-        return approve_artifact(task_id, "Completed from Team Portal")
+        if current_status not in {"running", "ready", "review"}:
+            return CLIResult(False, "", f"A task in {current_status or 'unknown state'} cannot be completed directly. Move it to Review first.", 2)
+        result = approve_artifact(task_id, "Completed from Team Portal")
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
     if status == "archived":
-        return run_hermes("kanban", "archive", task_id)
-    return CLIResult(False, "", f"Unsupported or unsafe status transition: {status}", 2)
+        result = run_hermes("kanban", "archive", task_id)
+        if not result.ok:
+            return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
+        return result
+
+    return CLIResult(False, "", f"Unsupported board transition: {status}", 2)
+
+
+def _friendly_transition_error(stderr: str, current_status: str | None, target_status: str) -> str:
+    raw = stderr.strip()
+    try:
+        import json
+        payload = json.loads(raw)
+        if isinstance(payload, dict):
+            raw = str(payload.get("detail", raw))
+    except (ValueError, TypeError):
+        pass
+    lowered = raw.lower()
+    if "cannot claim" in lowered or "not ready" in lowered:
+        return "Hermes can't start this task yet. It must be Ready with no unfinished parent dependencies. Move it to Ready or resolve its parent tasks first."
+    if "cannot promote" in lowered or "unsatisfied parent" in lowered:
+        return "Hermes cannot move this task forward while parent dependencies are unfinished. Complete or unlink the parent task first."
+    if "cannot reclaim" in lowered:
+        return "Hermes could not release the active worker claim. Check whether a worker is still running, then retry."
+    if "cannot reopen" in lowered or "invalid review state" in lowered:
+        return "This Review card could not be reopened. It may already have an active reviewer run or be missing its review handoff."
+    if "cannot request review" in lowered:
+        return "Only a Ready or In Progress task can be sent for review."
+    if raw:
+        return f"Hermes rejected the move from {current_status or 'its current state'} to {target_status}: {raw}"
+    return f"Hermes rejected moving this task from {current_status or 'its current state'} to {target_status}."
 
 
 def claim_task(task_id: str) -> CLIResult:
