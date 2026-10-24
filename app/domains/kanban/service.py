@@ -76,7 +76,7 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     return CLIResult(True, created.stdout, "", 0)
 
 
-def attach_file(task_id: str, filename: str, data: bytes) -> CLIResult:
+def attach_file(task_id: str, filename: str, data: bytes, author: str | None = None) -> CLIResult:
     """Use Hermes' supported attachment CLI path, not direct DB/file metadata writes."""
     safe_name = Path(filename).name.strip()
     if not safe_name or safe_name in {".", ".."}:
@@ -84,7 +84,8 @@ def attach_file(task_id: str, filename: str, data: bytes) -> CLIResult:
     with tempfile.TemporaryDirectory(prefix="hermes-bridge-attachment-") as tmp:
         path = Path(tmp) / safe_name
         path.write_bytes(data)
-        return _kanban("attach", task_id, str(path))
+        author_args = [f"--author={author}"] if author else []
+        return _kanban("attach", *author_args, task_id, str(path))
 
 
 def edit_task(task_id: str, title: str | None = None, body: str | None = None,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from . import service
 from .schemas import (
@@ -57,7 +57,8 @@ def comment_task(task_id: str, body: CommentRequest) -> BridgeResult:
 
 
 @router.post("/tasks/{task_id}/attachments", response_model=BridgeResult)
-async def attach_file(task_id: str, file: UploadFile = File(...)) -> BridgeResult:
+async def attach_file(task_id: str, file: UploadFile = File(...),
+                      author: str | None = Form(None)) -> BridgeResult:
     max_bytes = 25 * 1024 * 1024
     data = bytearray()
     while chunk := await file.read(1024 * 1024):
@@ -66,7 +67,7 @@ async def attach_file(task_id: str, file: UploadFile = File(...)) -> BridgeResul
             raise HTTPException(status_code=413, detail="attachment exceeds 25 MB limit")
     if not data:
         raise HTTPException(status_code=400, detail="empty attachments are not accepted")
-    return _respond(service.attach_file(task_id, file.filename or "upload", bytes(data)))
+    return _respond(service.attach_file(task_id, file.filename or "upload", bytes(data), author))
 
 
 @router.post("/tasks/{task_id}/approve", response_model=BridgeResult)
