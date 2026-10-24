@@ -11,13 +11,14 @@ containerized) — it execs the real `hermes` binary, so there's exactly one
 Hermes install in the whole picture, no version-skew between a "real"
 install and a containerized copy.
 
-## IMPORTANT — built blind, verify before trusting
+## Status (2026-10-24)
 
-Written in a sandbox with no live `hermes` binary. Fully tested against a
-STUB `hermes` CLI (proves the HTTP/auth/routing layer works end to end);
-the actual CLI flag shapes (`hermes kanban create ...`, `hermes send
-telegram ...`) are best-effort from the docs, same caveat as the other two
-repos. Run the validation checklist before trusting this in production.
+Validated on the Mac mini against Hermes Agent v0.21.5: every route runs
+against the real CLI (`scripts/smoke_test.sh` green), the stub CLI parses the
+real argument shapes (`tests/`, 22 tests, in CI), and
+`scripts/cli_reference.sh --check` flags any drift after a Hermes update.
+The observed CLI state rules are in `docs/cli-reference.md`; the full Phase 0
+record is `docs/phase0-report.md`.
 
 ## Why this exists
 

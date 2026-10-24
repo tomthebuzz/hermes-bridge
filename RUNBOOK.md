@@ -16,16 +16,11 @@ Repos, in the order you deploy them:
 
 ## Status: what's verified vs. what isn't
 
-Everything in all three repos was built and tested against **synthetic
-data and a stub `hermes` CLI** in a sandbox with no access to a real
-Hermes install. The HTTP layer, auth, RBAC, routing, and error handling
-are proven. The live Mac mini Kanban schema has now been checked and the
-readers in `hermes-wrappers/app/kanban_read.py` and
-`hermes-team-bots/cron/kanban_read.py` have been patched for it
-(`tasks` has no `updated_at`; `task_comments.body` is aliased as `text`).
-The remaining unconfirmed piece is the exact `hermes kanban ...` CLI flag
-shape against your installed version — Step 1's bridge smoke test is where
-that gets settled for real.
+Verified on the Mac mini (2026-10-24, Hermes v0.21.5): every step below,
+with the corrections made along the way recorded in each step and in
+`docs/phase0-report.md`. Not verified: Telegram delivery (no real chat ids
+yet). For the per-client deployment around these repos see harness-kit's
+runbooks.
 
 ---
 
