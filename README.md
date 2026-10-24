@@ -90,6 +90,21 @@ export HERMES_BRIDGE_API_KEY=$(openssl rand -hex 32)
 bash scripts/install_launchd.sh
 ```
 
+Every kanban call is pinned to `HERMES_BRIDGE_KANBAN_BOARD` (the installer
+defaults it to `default`); `/diagnostics` reports the board in use.
+
+## Tests
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest tests          # FastAPI app against scripts/stub_hermes
+HERMES_BRIDGE_API_KEY=... scripts/smoke_test.sh   # live bridge + real CLI + Portal
+```
+
+`scripts/stub_hermes` parses the argument shapes of the real CLI and models
+the state rules recorded in `docs/cli-reference.md`; refresh both when Hermes
+is updated.
+
 ## Never expose this publicly
 
 Default bind is `127.0.0.1`. If you need Docker containers on the same
