@@ -120,3 +120,27 @@ Everything below is on `dev` in each repo, CI green on every push.
 **Load test**: six departments in parallel (Portal create → six workers →
 six attachments → six approvals): all Done, 0 Portal errors, review and
 done notices in all six rooms.
+
+## Independent security review (afternoon)
+
+A separate reviewer read the bridge and Portal changes against the threat
+model (semi-trusted Portal users, attacker-controlled text). All findings
+are fixed with a regression test each (bridge 27 tests, Portal 49, sweep 8):
+
+| Sev | Finding | Fix |
+|---|---|---|
+| High | A user whose tenants had no cards saw every tenant's board (empty tenant list = no filter; pre-existing) | empty list returns nothing |
+| High | Any reader could force an auto-approval with a past `SLA-DEADLINE` marker (body, comment, negative `sla_hours`) | newest comment marker only, markers reserved for publish, bounded hours, floor at hand-off + `min_hours` (Portal and sweep) |
+| High | Stored XSS: `.html`/`.svg` attachments rendered inline on the Portal origin (pre-existing) | inline allowlist, text as text/plain, `nosniff` + CSP sandbox |
+| Medium | Bridge logged full command lines: card text, comments and Telegram login links (tokens) | only verbs, flags, ids and lengths are logged |
+| Medium | Any string accepted as assignee (incl. the operator's `default` profile); `assign` without `--` | department profiles only; `--` |
+| Low–Med | Non-approvers could move cards out of Review (= reject) or archive | approval rights required |
+| Low | Login enumeration, no rate limit, login CSRF, MatrixDM could wipe its DM list or reuse a left room, approval comment before a failed completion, non-best-effort notify, id type compare | all fixed |
+| Suspected | onclick quote breakout, unvalidated task ids, default session secret, non-constant-time key compare | JSON-quoted args, `t_…` path validation, fail-closed secret, `hmac.compare_digest` |
+
+Also found while fixing: uvicorn's access log recorded `/login/verify?token=…`
+— now redacted. Note for the org's data-protection rule: the bridge log
+(`/tmp/hermes-bridge*.log`) from before the fix holds card text and login
+links from today's tests; all of it is synthetic test data, no real person's
+data, and every login token in it is used or expired. Delete or truncate it
+when convenient.
