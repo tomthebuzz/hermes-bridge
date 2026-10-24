@@ -144,3 +144,37 @@ Also found while fixing: uvicorn's access log recorded `/login/verify?token=…`
 links from today's tests; all of it is synthetic test data, no real person's
 data, and every login token in it is used or expired. Delete or truncate it
 when convenient.
+
+## Second independent review: ops scripts (harness-kit, hermes-team)
+
+2 high, 13 medium, ~16 low; fixed (tests: harness-kit 11, hermes-team 11):
+
+- **High**: a failed backup left Matrix stopped (now an EXIT trap restarts
+  it; partial snapshots removed); `matrix_provision.py` lost new account
+  passwords when a run failed half-way (now saved atomically after every
+  account, interrupted rotations finished on the next run).
+- **Medium**: team.yaml `label`/`purpose` could shift `add_agent` fields
+  (model provider/base_url) or inject config/prompt text into generated
+  profiles and tenants.yaml — validated and quoted now; the SLA sweep
+  crashed board-wide on a zone-less date or non-list skills, and a
+  self-chosen level-3 skill could override a rejecting tenant — fixed
+  (auto-approval needs ladder AND tenant), no resolution without a hand-off;
+  `autonomy_set` accepted any "approved" comment on a look-alike card — now
+  leadership card + team.yaml leadership approver only, edits confined to
+  `skills:`; health alerts lost when Matrix was the failing part — state
+  saved only after the post; key rotation could leave vault, Portal and
+  bridge on different keys — bridge proven first, rolled back otherwise
+  (rollback branch not drilled), atomic vault writes; restore skipped the
+  vault and wiped Matrix before checking the archive — fixed; cron job
+  names collided between clients — per-client suffix with migration;
+  `KANBAN_BOARD=default` pointed at the wrong DB — mapped in cron, refused
+  in the kit.
+- **Low**: bash-4 syntax in `wire_telegram.sh`, global board switch in
+  tenant seeding, swallowed install failures, `BACKUP_KEEP=0` deleting
+  every snapshot, attachments named `*.db` breaking backups, 0644 temp
+  files with secrets, non-atomic routes/wrappers, API key on curl's
+  command line — fixed.
+- **Accepted for now** (single-operator host): the new key is briefly on
+  PlistBuddy's argv during rotation; `client.env` is sourced as shell
+  (operator-written); reminder suppression by spoofing the `sla-sweep`
+  author; the bootstrap marker trusts the one-off container's exit code.
