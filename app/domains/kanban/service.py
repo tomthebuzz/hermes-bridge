@@ -119,7 +119,8 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
                                  claimed.returncode)
             return claimed
         if current_status in {"blocked", "todo"}:
-            promoted = _kanban("promote", task_id)
+            verb = "unblock" if current_status == "blocked" else "promote"
+            promoted = _kanban(verb, task_id)
             if not promoted.ok:
                 return CLIResult(False, "", _friendly_transition_error(promoted.stderr, current_status, "running"), promoted.returncode)
         return _kanban("claim", task_id)
@@ -129,7 +130,9 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
             result = _kanban("reclaim", task_id, f"--reason={reason}")
         elif current_status == "review":
             result = _kanban("reopen-review", task_id, f"--reason={reason}")
-        elif current_status in {"todo", "blocked"}:
+        elif current_status == "blocked":
+            result = _kanban("unblock", task_id, f"--reason={reason}")
+        elif current_status == "todo":
             result = _kanban("promote", "--", task_id, reason)
         else:
             return CLIResult(False, "", f"Cannot move a {current_status or 'unknown-state'} task to Ready through the Hermes workflow.", 2)
@@ -170,7 +173,8 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
         if current_status == "review":
             return CLIResult(True, f"Task {task_id} is already in Review", "", 0)
         if current_status in {"blocked", "todo"}:
-            promoted = _kanban("promote", task_id)
+            verb = "unblock" if current_status == "blocked" else "promote"
+            promoted = _kanban(verb, task_id)
             if not promoted.ok:
                 return CLIResult(False, "", _friendly_transition_error(promoted.stderr, current_status, status), promoted.returncode)
         result = publish_artifact_for_review(task_id, "Moved to Review from Team Portal")
@@ -205,6 +209,10 @@ def _friendly_transition_error(stderr: str, current_status: str | None, target_s
     except (ValueError, TypeError):
         pass
     lowered = raw.lower()
+    if "live worker is running" in lowered or "live-claim" in lowered:
+        return "A Hermes worker is still running this task. Wait for it to finish, or move the card back to Ready to release the worker, then retry."
+    if "no result or summary evidence" in lowered:
+        return "Hermes needs a short note describing what was done before it can mark this task Done."
     if "cannot claim" in lowered or "not ready" in lowered:
         return "Hermes can't start this task yet. It must be Ready with no unfinished parent dependencies. Move it to Ready or resolve its parent tasks first."
     if "cannot promote" in lowered or "unsatisfied parent" in lowered:
@@ -243,7 +251,13 @@ def approve_artifact(task_id: str, note: str = "") -> CLIResult:
 
 
 def reject_artifact(task_id: str, reason: str) -> CLIResult:
-    return _kanban("request-changes", "--", task_id, reason)
+    # request-changes only applies while a reviewer run claimed from Review is
+    # active; a card a human rejects from the Review column has no such run, so
+    # fall back to reopen-review, which records the reason as a comment.
+    result = _kanban("request-changes", "--", task_id, reason)
+    if result.ok or "active review run" not in result.stderr:
+        return result
+    return _kanban("reopen-review", f"--reason={reason}", task_id)
 
 
 def publish_artifact_for_review(task_id: str, summary: str = "") -> CLIResult:
