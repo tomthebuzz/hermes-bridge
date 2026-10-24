@@ -44,7 +44,7 @@ Credentials live in `harness-kit/.vault/macmini/` (chmod 600, git-ignored).
    computer use and browser on Telegram and Matrix, and no Kanban tools.
    Verify with `hermes-team/scripts/verify_profile_tools.sh`.
 5. **First message in a new room** gets a "No home channel is set" notice;
-   `connect_profile.sh` sets `MATRIX_HOME_CHANNEL` to the tenant room.
+   `connect_profile.sh` sets `MATRIX_HOME_ROOM` (the name the Matrix plugin reads; `MATRIX_HOME_CHANNEL` is ignored) to the tenant room.
 6. **Kanban notifications work.** The bridge subscribes every card it
    creates to its tenant room (`HERMES_BRIDGE_NOTIFY_ROUTES_FILE`, written by
    `connect_profile.sh`); approving in the Portal made `@tech` post
