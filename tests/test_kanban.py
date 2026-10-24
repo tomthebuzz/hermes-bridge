@@ -96,3 +96,35 @@ def test_send_telegram(client, stub):
     r = client.post("/messaging/telegram/send", json={"chat_id": "-100123", "text": "-hello"})
     assert r.status_code == 200, r.text
     assert stub.calls()[-1] == ["send", "--to", "telegram:-100123", "--", "-hello"]
+
+
+def test_wal_keeper_holds_board_db_read_only(tmp_path, monkeypatch):
+    import sqlite3
+    from app.config import settings
+    from app.core.wal_keeper import WalKeeper
+    db = tmp_path / "kanban.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA journal_mode=wal")
+        conn.execute("CREATE TABLE tasks(id TEXT)")
+    monkeypatch.setattr(settings, "kanban_db_path", str(db))
+    keeper = WalKeeper()
+    keeper.open()
+    assert keeper.held
+    writer = sqlite3.connect(db)
+    writer.execute("INSERT INTO tasks VALUES ('t_1')")
+    writer.commit()
+    writer.close()  # not the last connection, so the WAL files survive
+    assert (tmp_path / "kanban.db-wal").exists() and (tmp_path / "kanban.db-shm").exists()
+    import pytest
+    with pytest.raises(sqlite3.OperationalError):
+        keeper._conn.execute("INSERT INTO tasks VALUES ('t_2')")
+    keeper.close()
+
+
+def test_wal_keeper_never_creates_a_missing_db(tmp_path, monkeypatch):
+    from app.config import settings
+    from app.core.wal_keeper import WalKeeper
+    monkeypatch.setattr(settings, "kanban_db_path", str(tmp_path / "missing.db"))
+    keeper = WalKeeper()
+    keeper.open()
+    assert not keeper.held and not (tmp_path / "missing.db").exists()

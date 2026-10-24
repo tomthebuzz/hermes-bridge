@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Pin every kanban write to one board; unset means Hermes' *current* board,
     # which silently changes when anyone runs `hermes kanban boards switch`.
     kanban_board: str | None = None
+    # Board DB the bridge holds open (see core/wal_keeper.py); derived from
+    # kanban_board when unset.
+    kanban_db_path: str | None = None
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"

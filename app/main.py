@@ -20,18 +20,29 @@ from __future__ import annotations
 
 import os
 import shutil
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 
 from .auth import require_api_key
 from .config import settings
 from .core.logging import configure_logging
+from .core.wal_keeper import wal_keeper
 from .domains.kanban.router import router as kanban_router
 from .domains.messaging.router import router as messaging_router
 
 configure_logging()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    wal_keeper.open()
+    yield
+    wal_keeper.close()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Hermes Bridge",
     description="Authenticated bridge exposing hermes CLI write-paths over HTTP.",
     version="0.1.0",
@@ -47,6 +58,8 @@ def diagnostics():
         "resolved_path": resolved,
         "executable": bool(resolved and os.path.isfile(resolved) and os.access(resolved, os.X_OK)),
         "kanban_board": settings.kanban_board,
+        "kanban_db": str(wal_keeper.path),
+        "kanban_db_held_open": wal_keeper.held,
     }
 
 
