@@ -9,7 +9,7 @@
 #   BRIDGE_URL      default http://127.0.0.1:8765
 #   PORTAL_URL      default http://127.0.0.1:8080   (empty string = skip portal checks)
 #   SMOKE_TENANT    default tech
-#   KANBAN_DB       default ~/.hermes/kanban.db      (read-only status checks)
+#   KANBAN_DB       default ~/.hermes/kanban/boards/$KANBAN_BOARD/kanban.db (team; read-only status checks)
 #   SMOKE_FULL=1    also test the 25 MB upload limit (sends ~26 MB)
 #   SMOKE_TELEGRAM_CHAT_ID=<id>   also test /messaging/telegram/send
 #
@@ -19,7 +19,7 @@ set -uo pipefail
 BRIDGE_URL="${BRIDGE_URL:-http://127.0.0.1:8765}"
 PORTAL_URL="${PORTAL_URL-http://127.0.0.1:8080}"
 SMOKE_TENANT="${SMOKE_TENANT:-tech}"
-KANBAN_DB="${KANBAN_DB:-$HOME/.hermes/kanban.db}"
+KANBAN_DB="${KANBAN_DB:-$HOME/.hermes/kanban/boards/${KANBAN_BOARD:-team}/kanban.db}"
 KEY="${HERMES_BRIDGE_API_KEY:?set HERMES_BRIDGE_API_KEY}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 TMP="$(mktemp -d)"; TASK_ID=""
