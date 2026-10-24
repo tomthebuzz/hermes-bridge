@@ -42,27 +42,25 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     allowed = {"triage", "todo", "ready", "running", "review", "blocked", "done", "archived"}
     if status not in allowed:
         return CLIResult(False, "", f"unsupported initial status: {status}", 2)
-    initial = "blocked" if status in {"todo", "ready"} else "running"
-    args = ["create", "--tenant", tenant]
-    args += ["--triage"] if status == "triage" else ["--initial-status", initial]
+    # Hermes lands a standalone task in Ready unless told otherwise; Todo is
+    # reserved for dependency-gated work and a fresh card has no claim, so
+    # todo/ready/running all start in Ready rather than faking a raw status.
+    args = ["create", f"--tenant={tenant}"]
+    if status == "triage":
+        args += ["--triage"]
+    elif status == "blocked":
+        args += ["--initial-status", "blocked"]
     args += ["--priority", str(priority), "--json"]
     if assignee:
-        args += ["--assignee", assignee]
+        args += [f"--assignee={assignee}"]
     created = _kanban_with_body(args, body, [title])
-    if not created.ok or status in {"triage", "running", "blocked"}:
+    if not created.ok or status in {"triage", "todo", "ready", "running", "blocked"}:
         return created
     task_id = _task_id_from_create(created.stdout)
     if not task_id:
         return CLIResult(False, created.stdout,
                          "task was created but its ID could not be parsed; verify it with hermes kanban list", 1)
-    if status == "todo":
-        # Standalone tasks cannot be created directly in Todo; the Hermes
-        # state machine reserves it for dependency-gated work. Land the card in
-        # Ready instead of inserting a raw status into SQLite.
-        steps = [_kanban("promote", task_id)]
-    elif status == "ready":
-        steps = [_kanban("promote", task_id)]
-    elif status == "review":
+    if status == "review":
         steps = [publish_artifact_for_review(task_id, "Created in Review from Team Portal")]
     elif status == "done":
         steps = [approve_artifact(task_id, "Created as Done from Team Portal")]
@@ -240,7 +238,7 @@ def assign_task(task_id: str, assignee: str) -> CLIResult:
 def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResult:
     args = ["comment"]
     if author:
-        args += ["--author", author]
+        args += [f"--author={author}"]
     return _kanban(*args, "--", task_id, text)
 
 
