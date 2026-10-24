@@ -14,6 +14,15 @@ def _kanban(*args: str) -> CLIResult:
     return run_hermes("kanban", *board, *args)
 
 
+def _kanban_with_body(args: list[str], body: str, positional: list[str]) -> CLIResult:
+    """Pass the body via --body-file: argparse reads a value like "-x" as a flag,
+    and Hermes documents --body-file for bodies with flag-like lines."""
+    with tempfile.TemporaryDirectory(prefix="hermes-bridge-body-") as tmp:
+        path = Path(tmp) / "body.md"
+        path.write_text(body, encoding="utf-8")
+        return _kanban(*args, "--body-file", str(path), "--", *positional)
+
+
 def _task_id_from_create(stdout: str) -> str | None:
     try:
         obj = json.loads(stdout)
@@ -34,12 +43,12 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     if status not in allowed:
         return CLIResult(False, "", f"unsupported initial status: {status}", 2)
     initial = "blocked" if status in {"todo", "ready"} else "running"
-    args = ["create", title, "--tenant", tenant, "--body", body]
+    args = ["create", "--tenant", tenant]
     args += ["--triage"] if status == "triage" else ["--initial-status", initial]
     args += ["--priority", str(priority), "--json"]
     if assignee:
         args += ["--assignee", assignee]
-    created = _kanban(*args)
+    created = _kanban_with_body(args, body, [title])
     if not created.ok or status in {"triage", "running", "blocked"}:
         return created
     task_id = _task_id_from_create(created.stdout)
@@ -80,14 +89,16 @@ def attach_file(task_id: str, filename: str, data: bytes) -> CLIResult:
 
 def edit_task(task_id: str, title: str | None = None, body: str | None = None,
               priority: int | None = None) -> CLIResult:
-    args = ["edit", task_id]
+    # `edit` has no --body-file; the "=" form keeps dash-leading values from
+    # being read as flags.
+    args = ["edit"]
     if title is not None:
-        args += ["--title", title]
+        args += [f"--title={title}"]
     if body is not None:
-        args += ["--body", body]
+        args += [f"--body={body}"]
     if priority is not None:
         args += ["--priority", str(priority)]
-    return _kanban(*args)
+    return _kanban(*args, "--", task_id)
 
 
 def transition_task(task_id: str, status: str, reason: str = "Moved from Team Portal",
@@ -98,7 +109,7 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
 
     if status == "running":
         if current_status == "review":
-            reopened = _kanban("reopen-review", task_id, "--reason", reason)
+            reopened = _kanban("reopen-review", task_id, f"--reason={reason}")
             if not reopened.ok:
                 return CLIResult(False, "", _friendly_transition_error(reopened.stderr, "review", "running"), reopened.returncode)
             claimed = _kanban("claim", task_id)
@@ -115,11 +126,11 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
 
     if status == "ready":
         if current_status == "running":
-            result = _kanban("reclaim", task_id, "--reason", reason)
+            result = _kanban("reclaim", task_id, f"--reason={reason}")
         elif current_status == "review":
-            result = _kanban("reopen-review", task_id, "--reason", reason)
+            result = _kanban("reopen-review", task_id, f"--reason={reason}")
         elif current_status in {"todo", "blocked"}:
-            result = _kanban("promote", task_id, reason)
+            result = _kanban("promote", "--", task_id, reason)
         else:
             return CLIResult(False, "", f"Cannot move a {current_status or 'unknown-state'} task to Ready through the Hermes workflow.", 2)
         if not result.ok:
@@ -128,11 +139,11 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
 
     if status == "todo":
         if current_status == "review":
-            result = _kanban("reopen-review", task_id, "--reason", reason)
+            result = _kanban("reopen-review", task_id, f"--reason={reason}")
         elif current_status == "blocked":
-            result = _kanban("unblock", task_id, "--reason", reason)
+            result = _kanban("unblock", task_id, f"--reason={reason}")
         elif current_status == "running":
-            result = _kanban("reclaim", task_id, "--reason", reason)
+            result = _kanban("reclaim", task_id, f"--reason={reason}")
             if result.ok:
                 return CLIResult(True, result.stdout,
                                  "The active claim was released to Ready. Hermes reserves Todo for dependency-gated tasks.", 0)
@@ -144,11 +155,11 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
 
     if status == "blocked":
         if current_status == "running":
-            result = _kanban("block", task_id, reason)
+            result = _kanban("block", "--", task_id, reason)
         elif current_status in {"ready", "todo"}:
             if current_status == "todo":
                 return CLIResult(False, "", "This task is already waiting on dependencies in Todo; resolve or update its parent links instead of blocking it.", 2)
-            result = _kanban("block", task_id, reason)
+            result = _kanban("block", "--", task_id, reason)
         else:
             return CLIResult(False, "", f"Cannot block a {current_status or 'unknown-state'} task from the board. Only Ready or In Progress tasks can be blocked.", 2)
         if not result.ok:
@@ -218,25 +229,25 @@ def assign_task(task_id: str, assignee: str) -> CLIResult:
 
 
 def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResult:
-    args = ["comment", task_id, text]
+    args = ["comment"]
     if author:
         args += ["--author", author]
-    return _kanban(*args)
+    return _kanban(*args, "--", task_id, text)
 
 
 def approve_artifact(task_id: str, note: str = "") -> CLIResult:
     args = ["complete", task_id]
     if note:
-        args += ["--result", note]
+        args += [f"--result={note}"]
     return _kanban(*args)
 
 
 def reject_artifact(task_id: str, reason: str) -> CLIResult:
-    return _kanban("request-changes", task_id, reason)
+    return _kanban("request-changes", "--", task_id, reason)
 
 
 def publish_artifact_for_review(task_id: str, summary: str = "") -> CLIResult:
     args = ["request-review", task_id]
     if summary:
-        args += ["--summary", summary]
+        args += [f"--summary={summary}"]
     return _kanban(*args)
