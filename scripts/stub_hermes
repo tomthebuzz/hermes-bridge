@@ -1,25 +1,178 @@
 #!/usr/bin/env python3
-# Offline stand-in for the hermes CLI used to dry-run the bridge and smoke_test.sh
-# without a real Hermes install. State lives in the SQLite file named by STUB_DB.
-# It only models the verbs the bridge calls; the REAL CLI is the source of truth.
-import sqlite3, sys, os, json, uuid
-db = sqlite3.connect(os.environ["STUB_DB"]); db.execute("create table if not exists tasks(id text primary key, status text, title text)")
-a = sys.argv[1:]
-def st(t): return db.execute("select status from tasks where id=?", (t,)).fetchone()[0]
-def setst(t, s): db.execute("update tasks set status=? where id=?", (s, t)); db.commit()
-if a[:1] == ["--version"]: print("stub 0"); sys.exit()
-if a[0] == "send": print("sent"); sys.exit()
-v = a[1]
+# Offline stand-in for the hermes CLI used to dry-run the bridge, its tests and
+# smoke_test.sh without a real Hermes install. State lives in the SQLite file
+# named by STUB_DB; if STUB_LOG is set, every argv is appended to it as JSON.
+# It parses the argument shapes of Hermes Agent v0.21.5 (docs/cli-reference.md)
+# and models the state rules recorded there; the REAL CLI is the source of truth.
+import argparse, json, os, sqlite3, sys, uuid
+
+if os.environ.get("STUB_LOG"):
+    with open(os.environ["STUB_LOG"], "a") as log:
+        log.write(json.dumps(sys.argv[1:]) + "\n")
+
+db = sqlite3.connect(os.environ["STUB_DB"])
+db.executescript("""
+create table if not exists tasks(id text primary key, status text, title text, body text, tenant text,
+    assignee text, priority int, result text, run_from text, blocked_from text);
+create table if not exists comments(task_id text, author text, body text);
+create table if not exists attachments(task_id text, name text, author text);
+""")
+
+def die(msg, rc=1):
+    print(msg, file=sys.stderr); sys.exit(rc)
+
+def status(tid):
+    row = db.execute("select status from tasks where id=?", (tid,)).fetchone()
+    return row[0] if row else None
+
+def setf(tid, **fields):
+    db.execute(f"update tasks set {', '.join(k + '=?' for k in fields)} where id=?", (*fields.values(), tid))
+    db.commit()
+
+def need(tid, allowed, msg):
+    if status(tid) not in allowed:
+        die(msg)
+
+def author(a):
+    return a or os.environ.get("HERMES_PROFILE") or "user"
+
+p = argparse.ArgumentParser(prog="hermes")
+p.add_argument("--version", action="store_true")
+top = p.add_subparsers(dest="cmd")
+
+send = top.add_parser("send")
+send.add_argument("-t", "--to"); send.add_argument("-f", "--file"); send.add_argument("-s", "--subject")
+send.add_argument("-q", "--quiet", action="store_true"); send.add_argument("--json", action="store_true")
+send.add_argument("message", nargs="?")
+
+kb = top.add_parser("kanban"); kb.add_argument("--board")
+sub = kb.add_subparsers(dest="verb", required=True)
+c = sub.add_parser("create"); c.add_argument("title")
+body = c.add_mutually_exclusive_group(); body.add_argument("--body"); body.add_argument("--body-file")
+for flag in ("--assignee", "--tenant", "--priority", "--created-by", "--idempotency-key"):
+    c.add_argument(flag)
+c.add_argument("--triage", action="store_true"); c.add_argument("--json", action="store_true")
+c.add_argument("--initial-status", choices=["blocked", "running"])
+e = sub.add_parser("edit"); e.add_argument("task_id")
+for flag in ("--title", "--body", "--priority", "--result", "--summary", "--metadata"):
+    e.add_argument(flag)
+cm = sub.add_parser("comment"); cm.add_argument("task_id"); cm.add_argument("text", nargs="+")
+cm.add_argument("--author"); cm.add_argument("--max-len", type=int)
+at = sub.add_parser("attach"); at.add_argument("task_id"); at.add_argument("path")
+at.add_argument("--author"); at.add_argument("--name"); at.add_argument("--content-type")
+cl = sub.add_parser("claim"); cl.add_argument("task_id"); cl.add_argument("--ttl", type=int)
+asg = sub.add_parser("assign"); asg.add_argument("task_id"); asg.add_argument("profile")
+pr = sub.add_parser("promote"); pr.add_argument("task_id"); pr.add_argument("reason", nargs="*")
+pr.add_argument("--dry-run", action="store_true"); pr.add_argument("--json", action="store_true")
+rc = sub.add_parser("reclaim"); rc.add_argument("task_id"); rc.add_argument("--reason")
+for verb in ("reopen-review", "unblock"):
+    x = sub.add_parser(verb); x.add_argument("task_ids", nargs="+"); x.add_argument("--reason")
+bl = sub.add_parser("block"); bl.add_argument("task_id"); bl.add_argument("reason", nargs="*")
+bl.add_argument("--kind", choices=["capability", "dependency", "needs_input", "transient"])
+rr = sub.add_parser("request-review"); rr.add_argument("task_id")
+for flag in ("--summary", "--reviewer", "--metadata"):
+    rr.add_argument(flag)
+rr.add_argument("--force", action="store_true")
+rq = sub.add_parser("request-changes"); rq.add_argument("task_id"); rq.add_argument("reason", nargs="+")
+co = sub.add_parser("complete"); co.add_argument("task_ids", nargs="+")
+for flag in ("--result", "--summary", "--metadata"):
+    co.add_argument(flag)
+co.add_argument("--force", action="store_true")
+ar = sub.add_parser("archive"); ar.add_argument("task_ids", nargs="*"); ar.add_argument("--rm", nargs="+")
+
+a = p.parse_args()
+if a.version:
+    print("stub 0"); sys.exit()
+if a.cmd == "send":
+    if not a.to:
+        die("hermes send: --to is required", 2)
+    if not a.message and not a.file:
+        die("hermes send: no message", 2)
+    print(f"sent to {a.to}"); sys.exit()
+if a.cmd != "kanban":
+    die(f"stub: unsupported command {a.cmd}", 2)
+
+v = a.verb
 if v == "create":
-    tid = "t_" + uuid.uuid4().hex[:8]; s = "running" if "--initial-status" not in a else a[a.index("--initial-status")+1]
-    db.execute("insert into tasks values(?,?,?)", (tid, s, a[2])); db.commit(); print(json.dumps({"id": tid})); sys.exit()
-t = a[2]
-trans = {"request-review": ("running", "review"), "request-changes": ("review", "running"),
-         "complete": ("review", "done"), "claim": (None, "running"), "archive": (None, "archived"),
-         "reopen-review": ("review", "ready"), "reclaim": ("running", "ready"), "promote": (None, "ready"),
-         "block": (None, "blocked"), "unblock": ("blocked", "ready")}
-if v in trans:
-    need, to = trans[v]
-    if need and st(t) != need: print(f"cannot {v} from {st(t)}", file=sys.stderr); sys.exit(1)
-    setst(t, to)
-print("ok")
+    text = open(a.body_file).read() if a.body_file else (a.body or "")
+    st = "triage" if a.triage else ("blocked" if a.initial_status == "blocked" else "ready")
+    tid = "t_" + uuid.uuid4().hex[:8]
+    db.execute("insert into tasks(id, status, title, body, tenant, assignee, priority) values(?,?,?,?,?,?,?)",
+               (tid, st, a.title, text, a.tenant, a.assignee, int(a.priority or 0)))
+    db.commit()
+    out = {"id": tid, "title": a.title, "body": text, "status": st, "tenant": a.tenant, "assignee": a.assignee}
+    print(json.dumps(out) if a.json else f"Created {tid}"); sys.exit()
+
+ids = getattr(a, "task_ids", None) or ([a.task_id] if getattr(a, "task_id", None) else [])
+for tid in ids:
+    if status(tid) is None:
+        die(f"unknown task {tid}")
+
+if v == "edit":
+    if all(x is None for x in (a.title, a.body, a.priority, a.result)):
+        die("kanban edit: provide --title, --body, --priority, or --result", 2)
+    fields = {k: val for k, val in (("title", a.title), ("body", a.body), ("result", a.result)) if val is not None}
+    if a.priority is not None:
+        fields["priority"] = int(a.priority)
+    setf(a.task_id, **fields); print(f"Edited {a.task_id}")
+elif v == "comment":
+    db.execute("insert into comments values(?,?,?)", (a.task_id, author(a.author), " ".join(a.text))); db.commit()
+    print(f"Comment added to {a.task_id}")
+elif v == "attach":
+    if not os.path.isfile(a.path):
+        die(f"cannot attach: {a.path} not found")
+    db.execute("insert into attachments values(?,?,?)", (a.task_id, a.name or os.path.basename(a.path), author(a.author)))
+    db.commit(); print(f"Attached {os.path.basename(a.path)} to {a.task_id}")
+elif v == "claim":
+    src = status(a.task_id)
+    need(a.task_id, {"ready", "review"}, f"cannot claim {a.task_id} (not ready)")
+    setf(a.task_id, status="running", run_from=src); print(f"Claimed {a.task_id}")
+elif v == "assign":
+    setf(a.task_id, assignee=None if a.profile == "none" else a.profile); print(f"Assigned {a.task_id}")
+elif v == "promote":
+    need(a.task_id, {"todo", "blocked"}, f"cannot promote {a.task_id}")
+    if not a.dry_run:
+        setf(a.task_id, status="ready")
+    print(f"Promoted {a.task_id}")
+elif v == "reclaim":
+    need(a.task_id, {"running"}, f"cannot reclaim {a.task_id}")
+    setf(a.task_id, status="ready", run_from=None); print(f"Reclaimed {a.task_id}")
+elif v == "reopen-review":
+    for tid in a.task_ids:
+        need(tid, {"review"}, f"cannot reopen {tid} (not in review?)")
+        setf(tid, status="ready")
+        if a.reason:
+            db.execute("insert into comments values(?,?,?)", (tid, author(None), f"CHANGES REQUESTED: {a.reason}")); db.commit()
+        print(f"Reopened {tid}")
+elif v == "unblock":
+    for tid in a.task_ids:
+        need(tid, {"blocked"}, f"cannot unblock {tid} (not blocked/scheduled?)")
+        frm = db.execute("select blocked_from from tasks where id=?", (tid,)).fetchone()[0]
+        setf(tid, status="review" if frm == "review" else "ready", blocked_from=None); print(f"Unblocked {tid}")
+elif v == "block":
+    src = status(a.task_id)
+    need(a.task_id, {"ready", "running", "review"}, f"cannot block {a.task_id}")
+    setf(a.task_id, status="blocked", blocked_from=src, run_from=None); print(f"Blocked {a.task_id}")
+elif v == "request-review":
+    need(a.task_id, {"running", "ready"}, f"cannot request review for {a.task_id}: not running/ready?")
+    setf(a.task_id, status="review", run_from=None)
+    print(f"Requested review for {a.task_id}" + (f": {a.summary}" if a.summary else ""))
+elif v == "request-changes":
+    st, frm = db.execute("select status, run_from from tasks where id=?", (a.task_id,)).fetchone()
+    if st != "running":
+        die(f"cannot request changes for {a.task_id}: task is not in an active review run")
+    if frm != "review":
+        die(f"cannot request changes for {a.task_id}: active run was not claimed from review")
+    setf(a.task_id, status="ready", run_from=None); print(f"Requested changes for {a.task_id}")
+elif v == "complete":
+    for tid in a.task_ids:
+        st = status(tid)
+        if st not in {"ready", "running", "review"}:
+            die(f"cannot complete {tid} (unknown id or terminal state)")
+        if st != "review" and not (a.result or a.summary or "").strip():
+            die(f"cannot complete {tid}: completion blocked: {tid} has no result or summary evidence. "
+                "Pass --result/--summary describing what was done (an empty completion is not evidence).")
+        setf(tid, status="done", result=a.result or a.summary, run_from=None); print(f"Completed {tid}")
+elif v == "archive":
+    for tid in a.task_ids:
+        setf(tid, status="archived"); print(f"Archived {tid}")

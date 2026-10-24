@@ -1,0 +1,98 @@
+from __future__ import annotations
+
+
+def move(client, task_id, status, current):
+    return client.post(f"/kanban/tasks/{task_id}/transition", json={"status": status, "current_status": current})
+
+
+def test_auth_required(stub):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    assert TestClient(app).post("/kanban/tasks", json={}).status_code == 401
+
+
+def test_every_kanban_call_is_pinned_to_the_board(client, stub, create):
+    task_id = create()
+    client.post(f"/kanban/tasks/{task_id}/comments", json={"text": "hi"})
+    assert stub.calls()
+    assert all(call[:3] == ["kanban", "--board", "testboard"] for call in stub.calls())
+
+
+def test_dash_leading_text_survives(client, stub):
+    r = client.post("/kanban/tasks", json={"title": "-t", "tenant": "tech", "body": "--not-a-flag", "status": "ready"})
+    assert r.status_code == 200, r.text
+    import json
+    task_id = json.loads(r.json()["detail"])["id"]
+    assert client.patch(f"/kanban/tasks/{task_id}", json={"title": "-t2", "body": "-b"}).status_code == 200
+    assert client.post(f"/kanban/tasks/{task_id}/comments", json={"text": "-c", "author": "-a"}).status_code == 200
+    assert stub.comments(task_id) == [("-a", "-c")]
+    assert move(client, task_id, "blocked", "ready").status_code == 200
+
+
+def test_create_in_each_column(client, stub, create):
+    for status, expected in [("triage", "triage"), ("ready", "ready"), ("todo", "ready"), ("blocked", "blocked"),
+                             ("running", "ready"), ("review", "review"), ("done", "done"), ("archived", "archived")]:
+        assert stub.status(create(status)) == expected, status
+
+
+def test_attach_passes_author(client, stub, create):
+    task_id = create()
+    r = client.post(f"/kanban/tasks/{task_id}/attachments", files={"file": ("a.txt", b"x")}, data={"author": "Ana"})
+    assert r.status_code == 200, r.text
+    assert any(c[3] == "attach" and "--author=Ana" in c for c in stub.calls())
+
+
+def test_review_loop_and_reject_from_review_column(client, stub, create):
+    task_id = create()
+    assert client.post(f"/kanban/tasks/{task_id}/publish-for-review", json={"summary": "v1"}).status_code == 200
+    assert stub.status(task_id) == "review"
+    r = client.post(f"/kanban/tasks/{task_id}/reject", json={"reason": "needs work"})
+    assert r.status_code == 200, r.text
+    assert stub.status(task_id) == "ready"
+    assert ("user", "CHANGES REQUESTED: needs work") in stub.comments(task_id)
+    client.post(f"/kanban/tasks/{task_id}/publish-for-review", json={"summary": "v2"})
+    assert client.post(f"/kanban/tasks/{task_id}/approve", json={"note": ""}).status_code == 200
+    assert stub.status(task_id) == "done"
+
+
+def test_reject_during_reviewer_run_uses_request_changes(client, stub, create):
+    task_id = create("review")
+    client.post(f"/kanban/tasks/{task_id}/claim")  # reviewer run claimed from review
+    assert client.post(f"/kanban/tasks/{task_id}/reject", json={"reason": "fix"}).status_code == 200
+    verbs = [c[3] for c in stub.calls()]
+    assert verbs[-1] == "request-changes" and stub.status(task_id) == "ready"
+
+
+def test_blocked_leaves_via_unblock(client, stub, create):
+    task_id = create("blocked")
+    assert move(client, task_id, "ready", "blocked").status_code == 200
+    assert stub.status(task_id) == "ready"
+    assert stub.calls()[-1][3] == "unblock"
+    move(client, task_id, "blocked", "ready")
+    assert move(client, task_id, "running", "blocked").status_code == 200
+    assert stub.status(task_id) == "running"
+
+
+def test_drag_transitions(client, stub, create):
+    task_id = create()
+    for target, current in [("running", "ready"), ("review", "running"), ("running", "review"),
+                            ("ready", "running"), ("done", "ready"), ("archived", "done")]:
+        r = move(client, task_id, target, current)
+        assert r.status_code == 200, (target, r.text)
+        assert stub.status(task_id) == target
+
+
+def test_illegal_move_is_explained(client, stub, create):
+    task_id = create("done")
+    r = move(client, task_id, "todo", "done")
+    assert r.status_code == 502 and "Todo" in r.json()["detail"]
+
+
+def test_edit_requires_a_field(client, stub, create):
+    assert client.patch(f"/kanban/tasks/{create()}", json={}).status_code == 422
+
+
+def test_send_telegram(client, stub):
+    r = client.post("/messaging/telegram/send", json={"chat_id": "-100123", "text": "-hello"})
+    assert r.status_code == 200, r.text
+    assert stub.calls()[-1] == ["send", "--to", "telegram:-100123", "--", "-hello"]
