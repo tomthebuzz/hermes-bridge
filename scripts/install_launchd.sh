@@ -42,6 +42,12 @@ sed -e "s#REPLACE_WITH_VENV_PYTHON_PATH#${VENV_PYTHON}#" \
     -e "s#REPLACE_WITH_KANBAN_BOARD#${KANBAN_BOARD}#" \
     "${PLIST_SRC}" > "${PLIST_DST}"
 
+# Optional: tenant -> chat routes for Kanban notifications (written by
+# harness-kit's connect_profile.sh).
+if [ -n "${HERMES_BRIDGE_NOTIFY_ROUTES_FILE:-}" ]; then
+  /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables:HERMES_BRIDGE_NOTIFY_ROUTES_FILE string ${HERMES_BRIDGE_NOTIFY_ROUTES_FILE}" "${PLIST_DST}"
+fi
+
 if command -v plutil >/dev/null 2>&1; then
   plutil -lint "${PLIST_DST}"
 fi

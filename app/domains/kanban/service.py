@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ...config import settings
 from ...core.process_runner import CLIResult, run_hermes
+from .notify import subscribe_tenant_room
 
 
 def _kanban(*args: str) -> CLIResult:
@@ -54,9 +55,13 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     if assignee:
         args += [f"--assignee={assignee}"]
     created = _kanban_with_body(args, body, [title])
-    if not created.ok or status in {"triage", "todo", "ready", "running", "blocked"}:
+    if not created.ok:
         return created
     task_id = _task_id_from_create(created.stdout)
+    if task_id:
+        subscribe_tenant_room(task_id, tenant, _kanban)
+    if status in {"triage", "todo", "ready", "running", "blocked"}:
+        return created
     if not task_id:
         return CLIResult(False, created.stdout,
                          "task was created but its ID could not be parsed; verify it with hermes kanban list", 1)

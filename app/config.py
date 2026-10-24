@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Board DB the bridge holds open (see core/wal_keeper.py); derived from
     # kanban_board when unset.
     kanban_db_path: str | None = None
+    # JSON file mapping tenant -> chat route; every card the bridge creates in
+    # that tenant is subscribed to it (see domains/kanban/notify.py).
+    notify_routes_file: str | None = None
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"

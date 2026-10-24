@@ -97,6 +97,13 @@ the board in use. Non-default boards keep their DB in
 directory: mounting the DB file alone hides the WAL, so the Portal would only
 see writes after a checkpoint.
 
+Set `HERMES_BRIDGE_NOTIFY_ROUTES_FILE` to a JSON map of tenant → chat route
+(`{"tech": {"platform": "matrix", "chat_id": "!room:server", "chat_type":
+"group", "notifier_profile": "tech"}}`) and every card the bridge creates is
+subscribed to its tenant room (`hermes kanban notify-subscribe`), so the
+department bot posts when it finishes or blocks. The file is re-read on each
+create; harness-kit's `connect_profile.sh` maintains it.
+
 ## Tests
 
 ```bash

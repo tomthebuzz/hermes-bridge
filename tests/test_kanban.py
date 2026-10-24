@@ -152,3 +152,23 @@ def test_triage_card_is_specified_then_promoted(client, stub, create):
 def test_assignees_lists_department_profiles(client, stub):
     r = client.get("/kanban/assignees")
     assert r.status_code == 200 and r.json() == ["marketing", "tech"]
+
+
+def test_new_cards_are_subscribed_to_their_tenant_room(client, stub, tmp_path, monkeypatch):
+    import json
+    from app.config import settings
+    routes = tmp_path / "routes.json"
+    routes.write_text(json.dumps({"tech": {"platform": "matrix", "chat_id": "!r:hs", "chat_type": "group",
+                                           "notifier_profile": "tech"}}))
+    monkeypatch.setattr(settings, "notify_routes_file", str(routes))
+    for tenant in ("tech", "sales"):
+        assert client.post("/kanban/tasks", json={"title": "T", "tenant": tenant, "status": "ready"}).status_code == 200
+    subs = [c for c in stub.calls() if c[3] == "notify-subscribe"]
+    assert len(subs) == 1
+    assert "--chat-id=!r:hs" in subs[0] and "--notifier-profile=tech" in subs[0]
+
+
+def test_unreadable_routes_never_block_create(client, stub, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "notify_routes_file", "/nonexistent/routes.json")
+    assert client.post("/kanban/tasks", json={"title": "T", "tenant": "tech", "status": "ready"}).status_code == 200
