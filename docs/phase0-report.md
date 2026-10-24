@@ -164,7 +164,7 @@ when convenient.
   `skills:`; health alerts lost when Matrix was the failing part — state
   saved only after the post; key rotation could leave vault, Portal and
   bridge on different keys — bridge proven first, rolled back otherwise
-  (rollback branch not drilled), atomic vault writes; restore skipped the
+  (rollback drilled with a simulated refusal), atomic vault writes; restore skipped the
   vault and wiped Matrix before checking the archive — fixed; cron job
   names collided between clients — per-client suffix with migration;
   `KANBAN_BOARD=default` pointed at the wrong DB — mapped in cron, refused
