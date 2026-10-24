@@ -355,6 +355,36 @@ options:
                         boards list` to see all boards.
 ```
 
+## `hermes kanban boards` --help
+
+```
+usage: hermes kanban boards [-h]
+                            {list,ls,create,new,rm,remove,delete,switch,use,show,current,rename,set-default-workdir,export,import} ...
+
+Boards let you separate unrelated streams of work (projects, repos, domains)
+into isolated queues. Each board has its own DB, workspaces directory, and
+dispatcher loop — tasks on one board cannot collide with tasks on another. The
+first board is 'default' and always exists.
+
+positional arguments:
+  {list,ls,create,new,rm,remove,delete,switch,use,show,current,rename,set-default-workdir,export,import}
+    list (ls)           List all boards with task counts
+    create (new)        Create a new board
+    rm (remove, delete)
+                        Archive (default) or delete a board
+    switch (use)        Set the active board for subsequent CLI calls
+    show (current)      Print the currently-active board slug
+    rename              Change a board's human-readable display name (slug is
+                        immutable)
+    set-default-workdir
+                        Set the default workspace path for tasks on a board
+    export              Export a board to a portable .tar.gz archive
+    import              Import a board archive as a new board
+
+options:
+  -h, --help            show this help message and exit
+```
+
 ## `hermes send` --help
 
 ```
@@ -732,4 +762,81 @@ options:
   --rm PURGE_IDS [PURGE_IDS ...]
                         Permanently delete already-archived task ids from the
                         board
+```
+
+## `hermes kanban specify` --help
+
+```
+usage: hermes kanban specify [-h] [--all] [--tenant TENANT] [--author AUTHOR]
+                             [--json]
+                             [task_id]
+
+positional arguments:
+  task_id          Task id to specify (required unless --all is given)
+
+options:
+  -h, --help       show this help message and exit
+  --all            Specify every task currently in the triage column
+  --tenant TENANT  When used with --all, restrict the sweep to this tenant
+  --author AUTHOR  Author name recorded on the audit comment (default:
+                   $HERMES_PROFILE or 'specifier')
+  --json           Emit one JSON object per task on stdout
+```
+
+## `hermes kanban assignees` --help
+
+```
+usage: hermes kanban assignees [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json
+```
+
+## `hermes kanban notify-subscribe` --help
+
+```
+usage: hermes kanban notify-subscribe [-h] --platform PLATFORM
+                                      --chat-id CHAT_ID
+                                      [--thread-id THREAD_ID]
+                                      [--user-id USER_ID]
+                                      [--user-id-alt USER_ID_ALT]
+                                      [--chat-type {dm,group,channel,thread}]
+                                      [--parent-chat-id PARENT_CHAT_ID]
+                                      [--guild-id GUILD_ID]
+                                      [--notifier-profile NOTIFIER_PROFILE]
+                                      [--delivery-mode {notify,notify+wake,wake}]
+                                      task_id
+
+positional arguments:
+  task_id
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM
+  --chat-id CHAT_ID
+  --thread-id THREAD_ID
+  --user-id USER_ID
+  --user-id-alt USER_ID_ALT
+  --chat-type {dm,group,channel,thread}
+                        Originating source chat_type, recorded so the active-
+                        wake delivery modes resolve the operator's real
+                        session. Omit to leave an existing sub unchanged (new
+                        subs default to 'dm').
+  --parent-chat-id PARENT_CHAT_ID
+                        Parent channel ID for a thread or forum post, used for
+                        multiplex profile routing.
+  --guild-id GUILD_ID   Discord guild ID, used for multiplex profile routing.
+  --notifier-profile NOTIFIER_PROFILE
+                        Profile gateway that owns/delivers this subscription
+                        (default: active profile)
+  --delivery-mode {notify,notify+wake,wake}
+                        How the kanban-notifier reacts to terminal events for
+                        this subscription: 'notify' (passive message only;
+                        default), 'notify+wake' (message AND wake the
+                        destination gateway agent so it reads the full board
+                        context and replies in its own voice), or 'wake' (wake
+                        the agent only, no passive message). Omit to leave an
+                        existing subscription's mode unchanged (new subs
+                        default to 'notify').
 ```
