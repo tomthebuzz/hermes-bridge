@@ -1,8 +1,9 @@
 # Matrix spike (Phase 0 step 8, Mac mini, 2026-10-24)
 
 Goal: Tuwunel in Docker with registration closed, and ONE Hermes profile on
-the bundled Matrix plugin. Result: **works** — the `tech` profile answers in
-`#tech` within seconds, reads its Kanban board from chat, and has no shell.
+the bundled Matrix plugin. Result: **works**, and was then extended to all
+six department profiles: each answers in its tenant room within 5–10 s
+(roll call 14:50), reads its Kanban board from chat, and has no shell.
 
 ## What runs
 
@@ -10,7 +11,7 @@ the bundled Matrix plugin. Result: **works** — the `tech` profile answers in
 |---|---|---|
 | Tuwunel `ghcr.io/matrix-construct/tuwunel:v1.9.4` | `macmini-tuwunel-1`, 127.0.0.1 + tailnet IP, port 8008 | `harness-kit/scripts/bootstrap.sh macmini` |
 | Accounts + rooms | `@admin`, one bot per department (`@tech` … `@leadership`), one private room per tenant | `harness-kit/scripts/matrix_provision.py macmini` |
-| Hermes Matrix plugin | `tech` profile only (`~/.hermes/profiles/tech/.env`) | `harness-kit/scripts/connect_profile.sh macmini tech` |
+| Hermes Matrix plugin | all six department profiles (`~/.hermes/profiles/<id>/.env`) | `harness-kit/scripts/connect_profile.sh macmini <id>` (`NO_RESTART=1` for all but the last) |
 
 Server name `lobsys-mac-mini.tailad642b.ts.net`, federation off, E2EE off.
 Credentials live in `harness-kit/.vault/macmini/` (chmod 600, git-ignored).
@@ -51,6 +52,5 @@ Credentials live in `harness-kit/.vault/macmini/` (chmod 600, git-ignored).
 
 - Element / Element X login (they may insist on HTTPS for non-localhost
   servers: `tailscale serve --https=8448 http://127.0.0.1:8008`).
-- The other five profiles on Matrix (`connect_profile.sh macmini <id>`).
 - Kanban notifications into tenant rooms (`hermes kanban notify-subscribe`).
 - Portal login over Matrix (`magic_link_matrix`, Phase 1).
