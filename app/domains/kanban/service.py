@@ -106,7 +106,7 @@ def edit_task(task_id: str, title: str | None = None, body: str | None = None,
 
 
 def transition_task(task_id: str, status: str, reason: str = "Moved from Team Portal",
-                    current_status: str | None = None) -> CLIResult:
+                    current_status: str | None = None, author: str | None = None) -> CLIResult:
     """Map board drag/drop to Hermes' legal lifecycle verbs; never write SQL."""
     if current_status == status:
         return CLIResult(True, f"Task {task_id} is already {status}", "", 0)
@@ -192,7 +192,7 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
     if status == "done":
         if current_status not in {"running", "ready", "review"}:
             return CLIResult(False, "", f"A task in {current_status or 'unknown state'} cannot be completed directly. Move it to Review first.", 2)
-        result = approve_artifact(task_id, "Completed from Team Portal")
+        result = approve_artifact(task_id, "Completed from Team Portal", author)
         if not result.ok:
             return CLIResult(False, "", _friendly_transition_error(result.stderr, current_status, status), result.returncode)
         return result
@@ -271,7 +271,14 @@ def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResul
     return _kanban(*args, "--", task_id, text)
 
 
-def approve_artifact(task_id: str, note: str = "") -> CLIResult:
+def approve_artifact(task_id: str, note: str = "", author: str | None = None) -> CLIResult:
+    # `complete` records no approver; with an author the approval is posted as
+    # their comment and named in the result, so it stays attributable.
+    if author:
+        commented = comment_task(task_id, f"APPROVED: {note}" if note else "APPROVED", author)
+        if not commented.ok:
+            return commented
+        note = f"Approved by {author}" + (f": {note}" if note else "")
     args = ["complete", task_id]
     if note:
         args += [f"--result={note}"]

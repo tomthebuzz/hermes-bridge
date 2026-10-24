@@ -54,7 +54,7 @@ def edit_task(task_id: str, body: EditTaskRequest) -> BridgeResult:
 
 @router.post("/tasks/{task_id}/transition", response_model=BridgeResult)
 def transition_task(task_id: str, body: TransitionRequest) -> BridgeResult:
-    return _respond(service.transition_task(task_id, body.status, body.reason, body.current_status))
+    return _respond(service.transition_task(task_id, body.status, body.reason, body.current_status, body.author))
 
 
 @router.post("/tasks/{task_id}/claim", response_model=BridgeResult)
@@ -88,7 +88,7 @@ async def attach_file(task_id: str, file: UploadFile = File(...),
 
 @router.post("/tasks/{task_id}/approve", response_model=BridgeResult)
 def approve_artifact(task_id: str, body: ReviewRequest) -> BridgeResult:
-    return _respond(service.approve_artifact(task_id, body.note))
+    return _respond(service.approve_artifact(task_id, body.note, body.author))
 
 
 @router.post("/tasks/{task_id}/reject", response_model=BridgeResult)

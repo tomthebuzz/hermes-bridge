@@ -172,3 +172,17 @@ def test_unreadable_routes_never_block_create(client, stub, monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, "notify_routes_file", "/nonexistent/routes.json")
     assert client.post("/kanban/tasks", json={"title": "T", "tenant": "tech", "status": "ready"}).status_code == 200
+
+
+def test_approval_names_the_approver(client, stub, create):
+    task_id = create("review")
+    assert client.post(f"/kanban/tasks/{task_id}/approve", json={"note": "looks good", "author": "Ana"}).status_code == 200
+    assert stub.comments(task_id) == [("Ana", "APPROVED: looks good")]
+    assert any(c[3] == "complete" and "--result=Approved by Ana: looks good" in c for c in stub.calls())
+    assert stub.status(task_id) == "done"
+
+
+def test_drag_to_done_names_the_approver(client, stub, create):
+    task_id = create("ready")
+    r = client.post(f"/kanban/tasks/{task_id}/transition", json={"status": "done", "current_status": "ready", "author": "Ana"})
+    assert r.status_code == 200 and stub.comments(task_id) == [("Ana", "APPROVED: Completed from Team Portal")]

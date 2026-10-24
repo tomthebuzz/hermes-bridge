@@ -22,6 +22,7 @@ class TransitionRequest(BaseModel):
     status: str
     reason: str = "Moved from Team Portal"
     current_status: str | None = None
+    author: str | None = None
 
 
 class AssignRequest(BaseModel):
@@ -35,6 +36,7 @@ class CommentRequest(BaseModel):
 
 class ReviewRequest(BaseModel):
     note: str = ""
+    author: str | None = None
 
 
 class RejectRequest(BaseModel):
