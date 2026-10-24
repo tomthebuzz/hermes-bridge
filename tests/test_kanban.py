@@ -186,3 +186,11 @@ def test_drag_to_done_names_the_approver(client, stub, create):
     task_id = create("ready")
     r = client.post(f"/kanban/tasks/{task_id}/transition", json={"status": "done", "current_status": "ready", "author": "Ana"})
     assert r.status_code == 200 and stub.comments(task_id) == [("Ana", "APPROVED: Completed from Team Portal")]
+
+
+def test_generic_send_as_a_profile(client, stub):
+    r = client.post("/messaging/send", json={"to": "matrix:!room:hs", "text": "-digest", "profile": "tech"})
+    assert r.status_code == 200, r.text
+    assert stub.calls()[-1] == ["-p", "tech", "send", "--to", "matrix:!room:hs", "--", "-digest"]
+    assert client.post("/messaging/send", json={"to": "email:x@y", "text": "x"}).status_code == 422
+    assert client.post("/messaging/send", json={"to": "matrix:!r", "text": "x", "profile": "../etc"}).status_code == 422

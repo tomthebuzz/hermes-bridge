@@ -38,6 +38,7 @@ def author(a):
 
 p = argparse.ArgumentParser(prog="hermes")
 p.add_argument("--version", action="store_true")
+p.add_argument("-p", "--profile")
 top = p.add_subparsers(dest="cmd")
 
 send = top.add_parser("send")
