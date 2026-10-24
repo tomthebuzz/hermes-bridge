@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hmac
+
 from fastapi import Header, HTTPException
 
 from .config import settings
@@ -14,5 +16,5 @@ def require_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Ke
     Deliberately returns 401 for BOTH missing and wrong keys (not 422 for
     missing) — a caller shouldn't be able to distinguish "I forgot the
     header" from "I guessed wrong" through the status code."""
-    if x_api_key is None or x_api_key != settings.api_key:
+    if x_api_key is None or not hmac.compare_digest(x_api_key.encode(), settings.api_key.encode()):
         raise HTTPException(status_code=401, detail="invalid or missing X-API-Key")

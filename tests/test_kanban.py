@@ -194,3 +194,39 @@ def test_generic_send_as_a_profile(client, stub):
     assert stub.calls()[-1] == ["-p", "tech", "send", "--to", "matrix:!room:hs", "--", "-digest"]
     assert client.post("/messaging/send", json={"to": "email:x@y", "text": "x"}).status_code == 422
     assert client.post("/messaging/send", json={"to": "matrix:!r", "text": "x", "profile": "../etc"}).status_code == 422
+
+
+def test_logs_never_carry_text_or_tokens():
+    from app.core.process_runner import redact
+    line = redact(("kanban", "--board", "team", "comment", "--author=Ana Muster", "--", "t_ab12", "secret body jane@x.ch"))
+    assert "Ana" not in line and "jane" not in line and "t_ab12" in line and "--author=<10 chars>" in line
+    line = redact(("send", "--to", "telegram:-100123", "--", "login https://portal/login/verify?token=abc"))
+    assert "token=" not in line and "telegram" not in line
+
+
+def test_bad_task_ids_never_reach_the_cli(client, stub):
+    for bad in ("-h", "--force", "x;rm", "t_" + "a" * 80):
+        assert client.post(f"/kanban/tasks/{bad}/claim").status_code in (404, 422)
+    assert [c for c in stub.calls() if "claim" in c] == []
+
+
+def test_a_refused_approval_leaves_no_approved_comment(client, stub, create):
+    task_id = create("done")    # Hermes refuses to complete a terminal card
+    before = stub.comments(task_id)
+    r = client.post(f"/kanban/tasks/{task_id}/approve", json={"note": "again", "author": "Ana"})
+    assert r.status_code == 502 and stub.comments(task_id) == before
+
+
+def test_incomplete_notify_route_does_not_break_create(client, stub, tmp_path, monkeypatch):
+    import json
+    from app.config import settings
+    routes = tmp_path / "routes.json"
+    routes.write_text(json.dumps({"tech": {"platform": "matrix"}}))
+    monkeypatch.setattr(settings, "notify_routes_file", str(routes))
+    assert client.post("/kanban/tasks", json={"title": "T", "tenant": "tech", "status": "ready"}).status_code == 200
+
+
+def test_assign_separates_options(client, stub, create):
+    task_id = create()
+    assert client.post(f"/kanban/tasks/{task_id}/assign", json={"assignee": "tech"}).status_code == 200
+    assert stub.calls()[-1][3:] == ["assign", "--", task_id, "tech"]

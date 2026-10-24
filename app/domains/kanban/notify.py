@@ -27,8 +27,11 @@ def _routes() -> dict:
 def subscribe_tenant_room(task_id: str, tenant: str, kanban: Callable[..., CLIResult]) -> None:
     """Best effort: a card is still created when its tenant room can't be
     subscribed; the failure is only logged."""
-    route = _routes().get(tenant)
-    if not route:
+    routes = _routes()
+    route = routes.get(tenant) if isinstance(routes, dict) else None
+    if not isinstance(route, dict) or not route.get("platform") or not route.get("chat_id"):
+        if route is not None:
+            logger.warning("notify route for %s is incomplete; not subscribing %s", tenant, task_id)
         return
     args = ["notify-subscribe", f"--platform={route['platform']}", f"--chat-id={route['chat_id']}"]
     if route.get("chat_type"):

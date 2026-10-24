@@ -261,7 +261,7 @@ def claim_task(task_id: str) -> CLIResult:
 
 
 def assign_task(task_id: str, assignee: str) -> CLIResult:
-    return _kanban("assign", task_id, assignee)
+    return _kanban("assign", "--", task_id, assignee)
 
 
 def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResult:
@@ -274,15 +274,19 @@ def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResul
 def approve_artifact(task_id: str, note: str = "", author: str | None = None) -> CLIResult:
     # `complete` records no approver; with an author the approval is posted as
     # their comment and named in the result, so it stays attributable.
+    comment = f"APPROVED: {note}" if note else "APPROVED"
     if author:
-        commented = comment_task(task_id, f"APPROVED: {note}" if note else "APPROVED", author)
-        if not commented.ok:
-            return commented
         note = f"Approved by {author}" + (f": {note}" if note else "")
-    args = ["complete", task_id]
+    args = ["complete"]
     if note:
         args += [f"--result={note}"]
-    return _kanban(*args)
+    done = _kanban(*args, "--", task_id)
+    if done.ok and author:
+        # After the completion, so a refused approval leaves no APPROVED trail.
+        commented = comment_task(task_id, comment, author)
+        if not commented.ok:
+            return CLIResult(True, done.stdout, f"approved, but the APPROVED comment failed: {commented.stderr}", 0)
+    return done
 
 
 def reject_artifact(task_id: str, reason: str, author: str | None = None) -> CLIResult:
