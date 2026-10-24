@@ -91,7 +91,11 @@ bash scripts/install_launchd.sh
 ```
 
 Every kanban call is pinned to `HERMES_BRIDGE_KANBAN_BOARD` (the installer
-defaults it to `default`); `/diagnostics` reports the board in use.
+defaults it to `team` and creates the board if needed); `/diagnostics` reports
+the board in use. Non-default boards keep their DB in
+`~/.hermes/kanban/boards/<slug>/`, which the Team Portal mounts read-only as a
+directory: mounting the DB file alone hides the WAL, so the Portal would only
+see writes after a checkpoint.
 
 ## Tests
 

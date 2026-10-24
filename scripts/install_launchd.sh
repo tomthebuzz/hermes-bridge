@@ -28,11 +28,18 @@ if [ -z "${HERMES_BRIDGE_API_KEY:-}" ]; then
   exit 1
 fi
 
+# The Team Portal mounts this board's directory read-only; the legacy
+# 'default' board keeps its DB at ~/.hermes/kanban.db, beside ~/.hermes/.env.
+KANBAN_BOARD="${HERMES_BRIDGE_KANBAN_BOARD:-team}"
+if ! "${HERMES_BIN_PATH}" kanban boards list 2>/dev/null | grep -qE "^[^a-z]*${KANBAN_BOARD}[[:space:]]"; then
+  "${HERMES_BIN_PATH}" kanban boards create "${KANBAN_BOARD}"
+fi
+
 sed -e "s#REPLACE_WITH_VENV_PYTHON_PATH#${VENV_PYTHON}#" \
     -e "s#REPLACE_WITH_REPO_PATH#${REPO_ROOT}#" \
     -e "s#REPLACE_WITH_REAL_SECRET#${HERMES_BRIDGE_API_KEY}#" \
     -e "s#REPLACE_WITH_HERMES_BIN_PATH#${HERMES_BIN_PATH}#" \
-    -e "s#REPLACE_WITH_KANBAN_BOARD#${HERMES_BRIDGE_KANBAN_BOARD:-default}#" \
+    -e "s#REPLACE_WITH_KANBAN_BOARD#${KANBAN_BOARD}#" \
     "${PLIST_SRC}" > "${PLIST_DST}"
 
 if command -v plutil >/dev/null 2>&1; then
