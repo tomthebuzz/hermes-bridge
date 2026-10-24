@@ -79,6 +79,9 @@ for flag in ("--result", "--summary", "--metadata"):
     co.add_argument(flag)
 co.add_argument("--force", action="store_true")
 ar = sub.add_parser("archive"); ar.add_argument("task_ids", nargs="*"); ar.add_argument("--rm", nargs="+")
+sp = sub.add_parser("specify"); sp.add_argument("task_id", nargs="?"); sp.add_argument("--all", action="store_true")
+sp.add_argument("--tenant"); sp.add_argument("--author"); sp.add_argument("--json", action="store_true")
+asl = sub.add_parser("assignees"); asl.add_argument("--json", action="store_true")
 
 a = p.parse_args()
 if a.version:
@@ -93,6 +96,9 @@ if a.cmd != "kanban":
     die(f"stub: unsupported command {a.cmd}", 2)
 
 v = a.verb
+if v == "assignees":
+    names = ["default", "tech", "marketing"]
+    print(json.dumps([{"name": n, "on_disk": True, "counts": {}} for n in names])); sys.exit()
 if v == "create":
     text = open(a.body_file).read() if a.body_file else (a.body or "")
     st = "triage" if a.triage else ("blocked" if a.initial_status == "blocked" else "ready")
@@ -173,6 +179,9 @@ elif v == "complete":
             die(f"cannot complete {tid}: completion blocked: {tid} has no result or summary evidence. "
                 "Pass --result/--summary describing what was done (an empty completion is not evidence).")
         setf(tid, status="done", result=a.result or a.summary, run_from=None); print(f"Completed {tid}")
+elif v == "specify":
+    need(a.task_id, {"triage"}, f"cannot specify {a.task_id} (not in triage)")
+    setf(a.task_id, status="todo"); print(f"Specified {a.task_id}")
 elif v == "archive":
     for tid in a.task_ids:
         setf(tid, status="archived"); print(f"Archived {tid}")

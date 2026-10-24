@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from . import service
@@ -22,6 +24,20 @@ def _respond(result) -> BridgeResult:
     if not result.ok:
         raise HTTPException(status_code=502, detail=result.stderr[:500] or "hermes kanban command failed")
     return BridgeResult(ok=True, detail=result.stdout[:2000])
+
+
+@router.get("/assignees")
+def list_assignees() -> list[str]:
+    """Profiles a card can be assigned to (installed on this host). `default`
+    is the operator's own agent, not a department profile, so it is left out."""
+    result = service.list_assignees()
+    if not result.ok:
+        raise HTTPException(status_code=502, detail=result.stderr[:500] or "hermes kanban assignees failed")
+    try:
+        rows = json.loads(result.stdout)
+    except ValueError:
+        raise HTTPException(status_code=502, detail="could not parse hermes kanban assignees output")
+    return sorted(r["name"] for r in rows if r.get("on_disk") and r.get("name") != "default")
 
 
 @router.post("/tasks", response_model=BridgeResult)
@@ -77,7 +93,7 @@ def approve_artifact(task_id: str, body: ReviewRequest) -> BridgeResult:
 
 @router.post("/tasks/{task_id}/reject", response_model=BridgeResult)
 def reject_artifact(task_id: str, body: RejectRequest) -> BridgeResult:
-    return _respond(service.reject_artifact(task_id, body.reason))
+    return _respond(service.reject_artifact(task_id, body.reason, body.author))
 
 
 @router.post("/tasks/{task_id}/publish-for-review", response_model=BridgeResult)

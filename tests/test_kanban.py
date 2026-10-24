@@ -128,3 +128,27 @@ def test_wal_keeper_never_creates_a_missing_db(tmp_path, monkeypatch):
     keeper = WalKeeper()
     keeper.open()
     assert not keeper.held and not (tmp_path / "missing.db").exists()
+
+
+def test_reject_from_review_credits_the_reviewer(client, stub, create):
+    task_id = create("review")
+    r = client.post(f"/kanban/tasks/{task_id}/reject", json={"reason": "fix", "author": "Ana Reviewer"})
+    assert r.status_code == 200, r.text
+    assert stub.comments(task_id) == [("Ana Reviewer", "CHANGES REQUESTED: fix")]
+    assert stub.status(task_id) == "ready"
+
+
+def test_triage_card_is_specified_then_promoted(client, stub, create):
+    task_id = create("triage")
+    assert move(client, task_id, "ready", "triage").status_code == 200
+    assert [c[3] for c in stub.calls()[-2:]] == ["specify", "promote"]
+    assert stub.status(task_id) == "ready"
+    other = create("triage")
+    assert move(client, other, "todo", "triage").status_code == 200 and stub.status(other) == "todo"
+    third = create("triage")
+    assert move(client, third, "done", "triage").status_code == 502
+
+
+def test_assignees_lists_department_profiles(client, stub):
+    r = client.get("/kanban/assignees")
+    assert r.status_code == 200 and r.json() == ["marketing", "tech"]

@@ -39,6 +39,7 @@ class ReviewRequest(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str
+    author: str | None = None
 
 
 class PublishForReviewRequest(BaseModel):

@@ -106,6 +106,9 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
     if current_status == status:
         return CLIResult(True, f"Task {task_id} is already {status}", "", 0)
 
+    if current_status == "triage":
+        return _leave_triage(task_id, status)
+
     if status == "running":
         if current_status == "review":
             reopened = _kanban("reopen-review", task_id, f"--reason={reason}")
@@ -198,6 +201,24 @@ def transition_task(task_id: str, status: str, reason: str = "Moved from Team Po
     return CLIResult(False, "", f"Unsupported board transition: {status}", 2)
 
 
+def _leave_triage(task_id: str, status: str) -> CLIResult:
+    """Triage has one exit, `specify`: Hermes' triage specifier (an LLM) fleshes
+    out the card and lands it in Todo. The gateway also does this on its own
+    each dispatcher tick, so this only makes it happen now."""
+    if status not in {"todo", "ready", "running"}:
+        return CLIResult(False, "", "A Triage card first has to be specified: move it to Todo or Ready.", 2)
+    specified = _kanban("specify", "--author=Team Portal", task_id)
+    if not specified.ok:
+        return CLIResult(False, "", _friendly_transition_error(specified.stderr, "triage", status), specified.returncode)
+    if status == "todo":
+        return specified
+    promoted = _kanban("promote", task_id)
+    if not promoted.ok:
+        return CLIResult(False, specified.stdout,
+                         "The card was specified and is in Todo; it waits there until its parent tasks finish.", promoted.returncode)
+    return _kanban("claim", task_id) if status == "running" else promoted
+
+
 def _friendly_transition_error(stderr: str, current_status: str | None, target_status: str) -> str:
     raw = stderr.strip()
     try:
@@ -249,14 +270,24 @@ def approve_artifact(task_id: str, note: str = "") -> CLIResult:
     return _kanban(*args)
 
 
-def reject_artifact(task_id: str, reason: str) -> CLIResult:
+def reject_artifact(task_id: str, reason: str, author: str | None = None) -> CLIResult:
     # request-changes only applies while a reviewer run claimed from Review is
     # active; a card a human rejects from the Review column has no such run, so
-    # fall back to reopen-review, which records the reason as a comment.
+    # fall back to reopen-review. Its --reason comment is credited to the
+    # bridge's own profile, so the reason is posted as the reviewer instead.
     result = _kanban("request-changes", "--", task_id, reason)
     if result.ok or "active review run" not in result.stderr:
         return result
-    return _kanban("reopen-review", f"--reason={reason}", task_id)
+    if not author:
+        return _kanban("reopen-review", f"--reason={reason}", task_id)
+    commented = comment_task(task_id, f"CHANGES REQUESTED: {reason}", author)
+    if not commented.ok:
+        return commented
+    return _kanban("reopen-review", task_id)
+
+
+def list_assignees() -> CLIResult:
+    return _kanban("assignees", "--json")
 
 
 def publish_artifact_for_review(task_id: str, summary: str = "") -> CLIResult:
