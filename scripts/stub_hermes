@@ -136,7 +136,7 @@ elif v == "claim":
 elif v == "assign":
     setf(a.task_id, assignee=None if a.profile == "none" else a.profile); print(f"Assigned {a.task_id}")
 elif v == "promote":
-    need(a.task_id, {"todo", "blocked"}, f"cannot promote {a.task_id}")
+    need(a.task_id, {"todo", "blocked"}, f"task {a.task_id} is '{status(a.task_id)}'; promote only applies to todo/blocked")
     if not a.dry_run:
         setf(a.task_id, status="ready")
     print(f"Promoted {a.task_id}")
@@ -181,7 +181,7 @@ elif v == "complete":
         setf(tid, status="done", result=a.result or a.summary, run_from=None); print(f"Completed {tid}")
 elif v == "specify":
     need(a.task_id, {"triage"}, f"cannot specify {a.task_id} (not in triage)")
-    setf(a.task_id, status="todo"); print(f"Specified {a.task_id}")
+    setf(a.task_id, status="ready"); print(f"Specified {a.task_id}")  # no parents -> lands in Ready
 elif v == "archive":
     for tid in a.task_ids:
         setf(tid, status="archived"); print(f"Archived {tid}")

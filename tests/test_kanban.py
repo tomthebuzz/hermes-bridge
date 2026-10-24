@@ -144,7 +144,7 @@ def test_triage_card_is_specified_then_promoted(client, stub, create):
     assert [c[3] for c in stub.calls()[-2:]] == ["specify", "promote"]
     assert stub.status(task_id) == "ready"
     other = create("triage")
-    assert move(client, other, "todo", "triage").status_code == 200 and stub.status(other) == "todo"
+    assert move(client, other, "todo", "triage").status_code == 200 and stub.status(other) == "ready"
     third = create("triage")
     assert move(client, third, "done", "triage").status_code == 502
 

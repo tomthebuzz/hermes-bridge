@@ -213,6 +213,9 @@ def _leave_triage(task_id: str, status: str) -> CLIResult:
     if status == "todo":
         return specified
     promoted = _kanban("promote", task_id)
+    # specify lands standalone cards straight in Ready; promote then refuses.
+    if not promoted.ok and "is 'ready'" in promoted.stderr:
+        promoted = CLIResult(True, specified.stdout, "", 0)
     if not promoted.ok:
         return CLIResult(False, specified.stdout,
                          "The card was specified and is in Todo; it waits there until its parent tasks finish.", promoted.returncode)
