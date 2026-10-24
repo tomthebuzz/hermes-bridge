@@ -91,7 +91,7 @@ PY
 )"
 if [[ -z "$TASK_ID" ]]; then bad "parse task id from create output" "$BODY"; echo; echo "Cannot continue without a task id."; exit $((fail))
 else ok "task id $TASK_ID"; fi
-expect_status running
+expect_status ready running   # real CLI lands new standalone cards in Ready
 
 step "3. Edit, comment, assign, attach"
 req PATCH "/kanban/tasks/$TASK_ID" '{"title":"SMOKE '"$STAMP"' (edited)","body":"Edited by smoke test","priority":1}'
