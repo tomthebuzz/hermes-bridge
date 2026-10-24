@@ -45,12 +45,15 @@ Credentials live in `harness-kit/.vault/macmini/` (chmod 600, git-ignored).
    Verify with `hermes-team/scripts/verify_profile_tools.sh`.
 5. **First message in a new room** gets a "No home channel is set" notice;
    `connect_profile.sh` sets `MATRIX_HOME_CHANNEL` to the tenant room.
-6. Two-member rooms count as DMs (no mention needed, room allowlist
+6. **Kanban notifications work.** The bridge subscribes every card it
+   creates to its tenant room (`HERMES_BRIDGE_NOTIFY_ROUTES_FILE`, written by
+   `connect_profile.sh`); approving in the Portal made `@tech` post
+   "✔ [team] @tech Kanban t_… done — …" in `#tech`.
+7. Two-member rooms count as DMs (no mention needed, room allowlist
    bypassed); add a third member for room semantics.
 
 ## Not verified yet
 
 - Element / Element X login (they may insist on HTTPS for non-localhost
   servers: `tailscale serve --https=8448 http://127.0.0.1:8008`).
-- Kanban notifications into tenant rooms (`hermes kanban notify-subscribe`).
 - Portal login over Matrix (`magic_link_matrix`, Phase 1).
