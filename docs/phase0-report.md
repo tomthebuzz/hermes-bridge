@@ -75,3 +75,48 @@ have no remote yet (local commits only).
    direction in `hermes-team/config/sla-defaults.yaml`).
 5. Workers keep the `file` tool.
 6. `dev` was fast-forwarded into `main` in all five repos.
+
+## Afternoon (autonomous, after the decisions)
+
+Everything below is on `dev` in each repo, CI green on every push.
+
+**Phase 1 / cutover readiness**
+- Profile S (Linux hosters) carries every dev fix; the Portal binds the
+  tailnet IP only (it exposed 0.0.0.0 with host networking). The bridge got a
+  systemd user unit + installer, checked in Debian 12.
+- `team_check.py` validates team.yaml (and renders the Portal's users.yaml
+  from its humans); `add_agent.sh` takes a team.yaml entry to a live bot in
+  one command (generator in hermes-team: `new_profile.py` + `_template`).
+- Runbooks: quickstart, backup/restore, hoster cutover (draft), upgrade,
+  rotate secrets, add agent, incident demotion, add mailbox (draft).
+
+**Operations on the Mac mini (all scheduled, all drilled)**
+- Nightly backup (rotated, consistent SQLite copies), ontology retention,
+  health check every 30 min with alerts in `#alerts` (debounced), weekly
+  autonomy proposals; digest now posts into each tenant's Matrix room.
+- `rotate_secret.sh`: bridge key, Portal session secret, Matrix tokens —
+  all three rotated live.
+- `macos_matrix_deps.sh` and `cli_reference.sh --check` guard Hermes updates.
+
+**Autonomy ladder, end to end**
+- `autonomy_report.py` (evidence from Kanban), proposals as leadership Review
+  cards, `autonomy_set.py` (promotion only with an approved card, approver
+  recorded; immediate demotion with an audit card).
+- The SLA sweep follows the ladder for skill-tagged cards (level ≥ 3:
+  approve after the veto window; ≤ 2: never auto-resolved, one reminder);
+  the Portal shows the level and the consequence on review cards.
+- Approvals are now attributed (they were anonymous in Hermes).
+
+**Security fixes found today**
+- Department bots had no explicit scope on email/slack/discord/whatsapp/
+  signal (fell back to file + cronjob); all nine platforms are now listed and
+  verified.
+- ontology search matched field names; now FTS5 over values. New: `migrate`,
+  audited `export`, `subject` access/erasure (GDPR Art. 15/17, CLI only).
+
+**Tests and CI**: bridge 22, Portal 36 (RBAC route by route), hermes-team
+6, harness-kit 5, ontology smoke 22/22; GitHub Actions in all five repos.
+
+**Load test**: six departments in parallel (Portal create → six workers →
+six attachments → six approvals): all Done, 0 Portal errors, review and
+done notices in all six rooms.
