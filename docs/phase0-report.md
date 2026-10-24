@@ -65,16 +65,13 @@ have no remote yet (local commits only).
   drop them (see `matrix-spike.md`).
 - hermes-ontology beyond one synthetic Organisation; PII rules not reviewed.
 
-## Decisions for Tom
+## Decisions (Tom, 2026-10-24: yes to all)
 
-1. **Remotes** for harness-kit and hermes-ontology (GitHub, private?) so they
-   can be synced like the other three.
-2. **`docker-team-portal-1`** on 0.0.0.0:8080: stop it in favour of the
-   harness-kit Portal on :8081, or rebuild it from `dev`?
-3. **Human vs agent review**: keep `kanban.review_dispatch: false`
-   (global), or let agents pre-review and humans approve?
-4. **SLA sweep auto-resolves worker hand-offs after 48 h** now (approve for
-   tech/marketing/sales/ops, reject for finance/leadership). Keep?
-5. **Workers have the `file` tool** (needed to write artifacts; Hermes
-   denies sensitive paths and redacts secrets). Acceptable?
-6. Merge `dev` → `main` once you have reviewed.
+1. harness-kit and hermes-ontology now have private GitHub remotes.
+2. `docker-team-portal-1` is stopped (container and image kept); the Portal
+   is the harness-kit one on :8081.
+3. Review stays human-only: `kanban.review_dispatch: false`.
+4. The SLA sweep auto-resolves worker hand-offs after 48 h (per-tenant
+   direction in `hermes-team/config/sla-defaults.yaml`).
+5. Workers keep the `file` tool.
+6. `dev` was fast-forwarded into `main` in all five repos.
