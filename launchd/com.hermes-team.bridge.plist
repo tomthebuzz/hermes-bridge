@@ -36,6 +36,8 @@
     <string>REPLACE_WITH_REAL_SECRET</string>
     <key>HERMES_BRIDGE_HERMES_BIN</key>
     <string>REPLACE_WITH_HERMES_BIN_PATH</string>
+    <key>HERMES_BRIDGE_KANBAN_BOARD</key>
+    <string>REPLACE_WITH_KANBAN_BOARD</string>
   </dict>
 
   <key>RunAtLoad</key>

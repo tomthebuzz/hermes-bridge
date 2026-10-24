@@ -46,6 +46,7 @@ def diagnostics():
         "hermes_bin": binary,
         "resolved_path": resolved,
         "executable": bool(resolved and os.path.isfile(resolved) and os.access(resolved, os.X_OK)),
+        "kanban_board": settings.kanban_board,
     }
 
 

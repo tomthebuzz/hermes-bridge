@@ -32,6 +32,7 @@ sed -e "s#REPLACE_WITH_VENV_PYTHON_PATH#${VENV_PYTHON}#" \
     -e "s#REPLACE_WITH_REPO_PATH#${REPO_ROOT}#" \
     -e "s#REPLACE_WITH_REAL_SECRET#${HERMES_BRIDGE_API_KEY}#" \
     -e "s#REPLACE_WITH_HERMES_BIN_PATH#${HERMES_BIN_PATH}#" \
+    -e "s#REPLACE_WITH_KANBAN_BOARD#${HERMES_BRIDGE_KANBAN_BOARD:-default}#" \
     "${PLIST_SRC}" > "${PLIST_DST}"
 
 if command -v plutil >/dev/null 2>&1; then

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     bind_port: int = 8765
     api_key: str
     request_timeout_seconds: float = 30.0
+    # Pin every kanban write to one board; unset means Hermes' *current* board,
+    # which silently changes when anyone runs `hermes kanban boards switch`.
+    kanban_board: str | None = None
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"
