@@ -196,12 +196,13 @@ deliberately narrow (external callers), not "everything talks through it."
 ## Step 5 — Register the cron jobs (hermes-team-bots)
 
 ```bash
-hermes cron add --from cron/artifact-sla-sweep.job.yaml
-hermes cron add --from cron/tenant-digest.job.yaml
+bash scripts/install_cron_jobs.sh
 ```
 
-(Flag shapes here are unverified against your Hermes version — run
-`hermes cron add --help` first and adjust if needed.)
+Verified on Hermes v0.21.5 (2026-10-24): Hermes has no `cron add --from`, so
+the script writes wrappers to `~/.hermes/scripts/` (they read the bridge key
+from the LaunchAgent plist at run time) and registers no-agent jobs with
+`hermes cron create`. Re-running replaces the jobs. Check with `hermes cron list`.
 
 If you'd rather run these as plain cron/launchd jobs instead of through
 Hermes' own scheduler (e.g. if you've resolved to containerize them per
