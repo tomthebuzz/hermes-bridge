@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # JSON file mapping tenant -> chat route; every card the bridge creates in
     # that tenant is subscribed to it (see domains/kanban/notify.py).
     notify_routes_file: str | None = None
+    # Executable that adds/updates/removes a person (Matrix account, rooms,
+    # bot allowlists, Portal access); /people is refused while unset.
+    people_hook: str | None = None
+    people_hook_timeout_seconds: float = 180.0
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"

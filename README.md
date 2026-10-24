@@ -46,6 +46,7 @@ app/
   domains/
     kanban/              router.py + service.py + schemas.py
     messaging/           router.py + service.py + schemas.py
+    people/              /people: runs HERMES_BRIDGE_PEOPLE_HOOK (add/update/remove a person)
 ```
 
 Adding a new capability (e.g. writing to MEMORY.md, triggering a cron run,
