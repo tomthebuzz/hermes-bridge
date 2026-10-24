@@ -1,0 +1,21 @@
+# systemd USER unit for hermes-bridge on Linux hosters (Profile S). Installed
+# by scripts/install_systemd.sh, which fills in the repository path.
+# Runs as the same user as Hermes, bound to loopback only.
+[Unit]
+Description=Hermes Bridge (authenticated HTTP bridge to the hermes CLI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=REPLACE_WITH_REPO_PATH
+# HERMES_BRIDGE_API_KEY, _HERMES_BIN, _KANBAN_BOARD, optional _NOTIFY_ROUTES_FILE
+EnvironmentFile=%h/.config/hermes-bridge/env
+ExecStart=REPLACE_WITH_REPO_PATH/.venv/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

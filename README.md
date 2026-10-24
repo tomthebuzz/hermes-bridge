@@ -90,6 +90,12 @@ export HERMES_BRIDGE_API_KEY=$(openssl rand -hex 32)
 bash scripts/install_launchd.sh
 ```
 
+On Linux (Profile S) use `scripts/install_systemd.sh` instead: a systemd
+**user** unit (`systemctl --user status hermes-bridge`), API key in
+`~/.config/hermes-bridge/env` (0600), same `HERMES_BRIDGE_*` variables.
+Checked in a Debian 12 container (install, tests, start command); not yet on
+a real hoster VM.
+
 Every kanban call is pinned to `HERMES_BRIDGE_KANBAN_BOARD` (the installer
 defaults it to `team` and creates the board if needed); `/diagnostics` reports
 the board in use. Non-default boards keep their DB in

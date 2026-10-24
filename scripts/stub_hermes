@@ -82,6 +82,8 @@ ar = sub.add_parser("archive"); ar.add_argument("task_ids", nargs="*"); ar.add_a
 sp = sub.add_parser("specify"); sp.add_argument("task_id", nargs="?"); sp.add_argument("--all", action="store_true")
 sp.add_argument("--tenant"); sp.add_argument("--author"); sp.add_argument("--json", action="store_true")
 asl = sub.add_parser("assignees"); asl.add_argument("--json", action="store_true")
+bd = sub.add_parser("boards"); bd.add_argument("action", choices=["list", "create", "switch"])
+bd.add_argument("slug", nargs="?"); bd.add_argument("--name")
 ns = sub.add_parser("notify-subscribe"); ns.add_argument("task_id")
 for flag in ("--platform", "--chat-id", "--chat-type", "--notifier-profile"):
     ns.add_argument(flag)
@@ -99,6 +101,14 @@ if a.cmd != "kanban":
     die(f"stub: unsupported command {a.cmd}", 2)
 
 v = a.verb
+if v == "boards":
+    db.execute("create table if not exists boards(slug text primary key)")
+    if a.action == "create":
+        db.execute("insert or ignore into boards values(?)", (a.slug,)); db.commit(); print(f"Created board {a.slug}")
+    elif a.action == "list":
+        for (slug,) in [("default",)] + db.execute("select slug from boards").fetchall():
+            print(f"    {slug:<25} {slug.title():<29} (stub)")
+    sys.exit()
 if v == "assignees":
     names = ["default", "tech", "marketing"]
     print(json.dumps([{"name": n, "on_disk": True, "counts": {}} for n in names])); sys.exit()
