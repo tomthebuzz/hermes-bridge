@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+# Offline stand-in for the hermes CLI used to dry-run the bridge and smoke_test.sh
+# without a real Hermes install. State lives in the SQLite file named by STUB_DB.
+# It only models the verbs the bridge calls; the REAL CLI is the source of truth.
+import sqlite3, sys, os, json, uuid
+db = sqlite3.connect(os.environ["STUB_DB"]); db.execute("create table if not exists tasks(id text primary key, status text, title text)")
+a = sys.argv[1:]
+def st(t): return db.execute("select status from tasks where id=?", (t,)).fetchone()[0]
+def setst(t, s): db.execute("update tasks set status=? where id=?", (s, t)); db.commit()
+if a[:1] == ["--version"]: print("stub 0"); sys.exit()
+if a[0] == "send": print("sent"); sys.exit()
+v = a[1]
+if v == "create":
+    tid = "t_" + uuid.uuid4().hex[:8]; s = "running" if "--initial-status" not in a else a[a.index("--initial-status")+1]
+    db.execute("insert into tasks values(?,?,?)", (tid, s, a[2])); db.commit(); print(json.dumps({"id": tid})); sys.exit()
+t = a[2]
+trans = {"request-review": ("running", "review"), "request-changes": ("review", "running"),
+         "complete": ("review", "done"), "claim": (None, "running"), "archive": (None, "archived"),
+         "reopen-review": ("review", "ready"), "reclaim": ("running", "ready"), "promote": (None, "ready"),
+         "block": (None, "blocked"), "unblock": ("blocked", "ready")}
+if v in trans:
+    need, to = trans[v]
+    if need and st(t) != need: print(f"cannot {v} from {st(t)}", file=sys.stderr); sys.exit(1)
+    setst(t, to)
+print("ok")
