@@ -237,10 +237,27 @@ export PORTAL_BASE_URL="http://YOUR-MAC-MINI-MAGICDNS-NAME:8080"
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-This bind-mounts your real `~/.hermes/kanban.db` (read-only) and
-`users.yaml` into the container, and points writes at
-`http://host.docker.internal:8765` (hermes-bridge) — no Hermes install
-needed inside this container at all.
+This bind-mounts the board directory `~/.hermes/kanban/boards/$KANBAN_BOARD`
+(default `team`, read-only) and `users.yaml` into the container, and points
+writes at `http://host.docker.internal:8765` (hermes-bridge) — no Hermes
+install needed inside this container at all. Optional: `PORTAL_PORT`
+(default 8080), `PORTAL_BIND` (default 127.0.0.1; set the tailnet IP to reach
+it from other devices), `USERS_YAML`, and `docker compose -p <name>` to run a
+second instance next to an existing one.
+
+Verified on the Mac mini (2026-10-24):
+
+- Mount the board *directory*, never `kanban.db` alone: a file-only mount
+  hides `kanban.db-wal`, and the Portal then only sees writes after a
+  checkpoint (a card created in the Portal 404'd in the Portal).
+- The bridge holds the board DB open (`/diagnostics` →
+  `kanban_db_held_open: true`); without that, `-wal`/`-shm` disappear
+  between CLI writes and Portal reads fail with "unable to open database
+  file".
+- Human approval in the Portal needs `hermes config set
+  kanban.review_dispatch false`. With it on, the dispatcher sends every
+  Review card with an assignee to an agent reviewer run, which approved the
+  test artifact 11 s after hand-off, before anyone could review it.
 
 Verify:
 
