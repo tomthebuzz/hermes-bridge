@@ -86,7 +86,7 @@ asl = sub.add_parser("assignees"); asl.add_argument("--json", action="store_true
 bd = sub.add_parser("boards"); bd.add_argument("action", choices=["list", "create", "switch"])
 bd.add_argument("slug", nargs="?"); bd.add_argument("--name")
 ns = sub.add_parser("notify-subscribe"); ns.add_argument("task_id")
-for flag in ("--platform", "--chat-id", "--chat-type", "--notifier-profile"):
+for flag in ("--platform", "--chat-id", "--chat-type", "--notifier-profile", "--thread-id", "--parent-chat-id"):
     ns.add_argument(flag)
 
 a = p.parse_args()
@@ -97,6 +97,11 @@ if a.cmd == "send":
         die("hermes send: --to is required", 2)
     if not a.message and not a.file:
         die("hermes send: no message", 2)
+    if a.json:
+        # like the real CLI: the platform, chat and the event id of the message
+        chat = a.to.split(":", 1)[1] if ":" in a.to else a.to
+        print(json.dumps({"success": True, "platform": a.to.split(":")[0], "chat_id": chat.split(":")[0],
+                          "message_id": "$stub-" + uuid.uuid4().hex[:12]})); sys.exit()
     print(f"sent to {a.to}"); sys.exit()
 if a.cmd != "kanban":
     die(f"stub: unsupported command {a.cmd}", 2)

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ...config import settings
 from ...core.process_runner import CLIResult, run_hermes
-from .notify import subscribe_tenant_room
+from .notify import open_task_thread, post_task_event
 
 
 def _kanban(*args: str) -> CLIResult:
@@ -59,7 +59,7 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
         return created
     task_id = _task_id_from_create(created.stdout)
     if task_id:
-        subscribe_tenant_room(task_id, tenant, _kanban)
+        open_task_thread(task_id, title, tenant, _kanban)
     if status in {"triage", "todo", "ready", "running", "blocked"}:
         return created
     if not task_id:
@@ -268,7 +268,10 @@ def comment_task(task_id: str, text: str, author: str | None = None) -> CLIResul
     args = ["comment"]
     if author:
         args += [f"--author={author}"]
-    return _kanban(*args, "--", task_id, text)
+    result = _kanban(*args, "--", task_id, text)
+    if result.ok:
+        post_task_event(task_id, f"Comment: {text[:300]}", author)
+    return result
 
 
 def approve_artifact(task_id: str, note: str = "", author: str | None = None) -> CLIResult:

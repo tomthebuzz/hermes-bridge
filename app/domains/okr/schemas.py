@@ -10,7 +10,7 @@ ObjectId = Field(pattern=r"^[a-z]+_[0-9a-f]{6,40}$")
 
 
 class UpsertRequest(SanitizedModel):
-    type: str = Field(pattern=r"^(Objective|KeyResult|KPI|Source)$")
+    type: str = Field(pattern=r"^(Objective|KeyResult|KPI|Source|TaskLink|TaskThread)$")
     id: str | None = Field(default=None, pattern=r"^[a-z]+_[0-9a-f]{6,40}$")
     data: dict
     # a new KeyResult is linked to this objective in the same call

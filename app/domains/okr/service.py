@@ -18,7 +18,9 @@ logger = logging.getLogger("hermes_bridge")
 
 # What the Portal may create or change. Measurement only through check-ins,
 # TaskLink and Review through their own routes later.
-EDITABLE_TYPES = ("Objective", "KeyResult", "KPI", "Source")
+EDITABLE_TYPES = ("Objective", "KeyResult", "KPI", "Source", "TaskLink", "TaskThread")
+# Types that name a team member need a lawful basis on create.
+LAWFUL_BASIS = {"TaskLink": "employment"}
 MEASURED_TYPES = {"KeyResult": "kr_measurements", "KPI": "kpi_measurements"}
 
 
@@ -62,6 +64,13 @@ def get(object_id: str) -> StoreResult:
     return _run("get", "--id", object_id)
 
 
+def search(type_name: str, text: str | None = None, limit: int = 200) -> StoreResult:
+    args = ["search", "--type", type_name, "--limit", str(limit)]
+    if text:
+        args += ["--text", text]
+    return _run(*args)
+
+
 def upsert(type_name: str, data: dict, actor: str, reason: str, object_id: str | None = None,
            source: str | None = None, lawful_basis: str | None = None) -> StoreResult:
     args = ["upsert", "--type", type_name, "--data", json.dumps(data, ensure_ascii=False),
@@ -70,8 +79,9 @@ def upsert(type_name: str, data: dict, actor: str, reason: str, object_id: str |
         args += ["--id", object_id]
     if source:
         args += ["--source", source]
-    if lawful_basis:
-        args += ["--lawful-basis", lawful_basis]
+    basis = lawful_basis or (LAWFUL_BASIS.get(type_name) if not object_id else None)
+    if basis:
+        args += ["--lawful-basis", basis]
     return _run(*args)
 
 

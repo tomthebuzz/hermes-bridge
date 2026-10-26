@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Path, UploadFile
 
 from . import service
+from .notify import post_task_event
 from .schemas import (
     AssignRequest,
     BridgeResult,
@@ -58,7 +59,9 @@ def edit_task(task_id: TaskId, body: EditTaskRequest) -> BridgeResult:
 
 @router.post("/tasks/{task_id}/transition", response_model=BridgeResult)
 def transition_task(task_id: TaskId, body: TransitionRequest) -> BridgeResult:
-    return _respond(service.transition_task(task_id, body.status, body.reason, body.current_status, body.author), body)
+    out = _respond(service.transition_task(task_id, body.status, body.reason, body.current_status, body.author), body)
+    post_task_event(task_id, f"Moved to {body.status}: {body.reason}", body.author)
+    return out
 
 
 @router.post("/tasks/{task_id}/claim", response_model=BridgeResult)
@@ -68,7 +71,9 @@ def claim_task(task_id: TaskId) -> BridgeResult:
 
 @router.post("/tasks/{task_id}/assign", response_model=BridgeResult)
 def assign_task(task_id: TaskId, body: AssignRequest) -> BridgeResult:
-    return _respond(service.assign_task(task_id, body.assignee), body)
+    out = _respond(service.assign_task(task_id, body.assignee), body)
+    post_task_event(task_id, f"Assigned to {body.assignee}")
+    return out
 
 
 @router.post("/tasks/{task_id}/comments", response_model=BridgeResult)
@@ -92,14 +97,20 @@ async def attach_file(task_id: TaskId, file: UploadFile = File(...),
 
 @router.post("/tasks/{task_id}/approve", response_model=BridgeResult)
 def approve_artifact(task_id: TaskId, body: ReviewRequest) -> BridgeResult:
-    return _respond(service.approve_artifact(task_id, body.note, body.author), body)
+    out = _respond(service.approve_artifact(task_id, body.note, body.author), body)
+    post_task_event(task_id, "Approved" + (f": {body.note}" if body.note else ""), body.author)
+    return out
 
 
 @router.post("/tasks/{task_id}/reject", response_model=BridgeResult)
 def reject_artifact(task_id: TaskId, body: RejectRequest) -> BridgeResult:
-    return _respond(service.reject_artifact(task_id, body.reason, body.author), body)
+    out = _respond(service.reject_artifact(task_id, body.reason, body.author), body)
+    post_task_event(task_id, f"Changes requested: {body.reason}", body.author)
+    return out
 
 
 @router.post("/tasks/{task_id}/publish-for-review", response_model=BridgeResult)
 def publish_artifact_for_review(task_id: TaskId, body: PublishForReviewRequest) -> BridgeResult:
-    return _respond(service.publish_artifact_for_review(task_id, body.summary), body)
+    out = _respond(service.publish_artifact_for_review(task_id, body.summary), body)
+    post_task_event(task_id, "Ready for review" + (f": {body.summary}" if body.summary else ""))
+    return out
