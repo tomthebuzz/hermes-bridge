@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Path, UploadFile
 
 from . import service
 from .notify import post_task_event
+from ..okr import service as team_store
 from .schemas import (
     AssignRequest,
     BridgeResult,
@@ -99,6 +100,7 @@ async def attach_file(task_id: TaskId, file: UploadFile = File(...),
 def approve_artifact(task_id: TaskId, body: ReviewRequest) -> BridgeResult:
     out = _respond(service.approve_artifact(task_id, body.note, body.author), body)
     post_task_event(task_id, "Approved" + (f": {body.note}" if body.note else ""), body.author)
+    team_store.review_decision(task_id, "approved", body.author or "portal")
     return out
 
 
@@ -106,6 +108,7 @@ def approve_artifact(task_id: TaskId, body: ReviewRequest) -> BridgeResult:
 def reject_artifact(task_id: TaskId, body: RejectRequest) -> BridgeResult:
     out = _respond(service.reject_artifact(task_id, body.reason, body.author), body)
     post_task_event(task_id, f"Changes requested: {body.reason}", body.author)
+    team_store.review_decision(task_id, "rejected", body.author or "portal")
     return out
 
 

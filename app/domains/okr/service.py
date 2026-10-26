@@ -113,3 +113,17 @@ def checkin(target_id: str, value: float, at: str, actor: str, reason: str, note
         return linked
     patch = {"current": value, "last_checkin": at[:10]} if type_name == "KeyResult" else {"current": value, "last_measured": at}
     return upsert(type_name, patch, actor, reason, object_id=target_id)
+
+
+def review_decision(task_id: str, status: str, actor: str) -> None:
+    """A weekly review card was approved or rejected in the Portal: the
+    pending Review record that names the card follows. Best effort."""
+    if not enabled():
+        return
+    found = search("Review", task_id)
+    for item in found.data.get("items", []) if found.ok else []:
+        data = item.get("data", {})
+        if data.get("kanban_task_id") == task_id and data.get("status") == "pending":
+            out = upsert("Review", {"status": status}, actor, f"review card {task_id} {status}", object_id=item["id"])
+            if not out.ok:
+                logger.warning("review record of %s not updated: %s", task_id, out.error)

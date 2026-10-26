@@ -84,3 +84,15 @@ def test_no_thread_no_post(client, stub, store, create):
     task_id = create(tenant="tech")
     client.post(f"/kanban/tasks/{task_id}/comments", json={"text": "hi"})
     assert not sends(stub)
+
+
+def test_review_card_decision_updates_the_review_record(client, stub, store, create):
+    objects, calls = store
+    task_id = create(tenant="tech", title="Weekly review 2026-W44")
+    objects["review_1"] = {"id": "review_1", "type": "Review", "data": {"tenant": "tech", "week": "2026-W44", "kanban_task_id": task_id, "status": "pending"}}
+    objects["review_0"] = {"id": "review_0", "type": "Review", "data": {"tenant": "tech", "week": "2026-W43", "kanban_task_id": "t_old", "status": "approved"}}
+    assert client.post(f"/kanban/tasks/{task_id}/publish-for-review", json={"summary": "v1"}).status_code == 200
+    assert client.post(f"/kanban/tasks/{task_id}/approve", json={"note": "fine", "author": "Tom"}).status_code == 200
+    assert objects["review_1"]["data"]["status"] == "approved" and objects["review_0"]["data"]["status"] == "approved"
+    upd = [c for c in calls if c[0] == "upsert" and "--id" in c and "review_1" in c]
+    assert upd and "Tom" in upd[-1]
