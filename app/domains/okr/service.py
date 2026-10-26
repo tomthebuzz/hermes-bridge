@@ -18,7 +18,9 @@ logger = logging.getLogger("hermes_bridge")
 
 # What the Portal may create or change. Measurement only through check-ins,
 # TaskLink and Review through their own routes later.
-EDITABLE_TYPES = ("Objective", "KeyResult", "KPI", "Source", "TaskLink", "TaskThread")
+EDITABLE_TYPES = ("Objective", "KeyResult", "KPI", "Source", "Swimlane", "TaskLane", "TaskLink", "TaskThread")
+# What may change team: a KeyResult moves with its objective, never alone.
+MOVABLE_TYPES = ("Objective", "KPI", "Source", "Swimlane")
 # Types that name a team member need a lawful basis on create.
 LAWFUL_BASIS = {"TaskLink": "employment"}
 MEASURED_TYPES = {"KeyResult": "kr_measurements", "KPI": "kpi_measurements"}
@@ -127,3 +129,61 @@ def review_decision(task_id: str, status: str, actor: str) -> None:
             out = upsert("Review", {"status": status}, actor, f"review card {task_id} {status}", object_id=item["id"])
             if not out.ok:
                 logger.warning("review record of %s not updated: %s", task_id, out.error)
+
+
+def _matching(type_name: str, field: str, value: str) -> list[dict]:
+    """Objects of a type whose `field` is exactly `value` (the text search
+    narrows, the filter decides)."""
+    found = search(type_name, value, limit=500)
+    return [item for item in found.data.get("items", []) if found.ok
+            if isinstance(item, dict) and item.get("data", {}).get(field) == value]
+
+
+def move(object_id: str, tenant: str, actor: str, reason: str) -> StoreResult:
+    """Move an objective (with its key results, which hang off it, and the
+    KPIs that name it), a KPI, a source or a swimlane to another team.
+    Lanes of the old team that pointed at a moved objective or KPI lose
+    that pointer; a KPI moved on its own leaves its objective behind.
+    Returns the moved object with `moved`: what followed it."""
+    target = get(object_id)
+    if not target.ok:
+        return target
+    type_name = target.data.get("type")
+    if type_name not in MOVABLE_TYPES:
+        return StoreResult(False, error=f"a {type_name} cannot move on its own")
+    data = target.data.get("data", {})
+    if data.get("tenant") == tenant:
+        return StoreResult(False, error=f"already in {tenant}")
+    moved: dict[str, list[str]] = {"kpis": [], "lanes_unlinked": []}
+    patch: dict = {"tenant": tenant}
+    if type_name == "KPI" and data.get("objective"):
+        patch["objective"] = None
+    if type_name == "Swimlane":
+        patch.update({"objective": None, "kpi": None}) if (data.get("objective") or data.get("kpi")) else None
+    out = upsert(type_name, patch, actor, reason, object_id=object_id)
+    if not out.ok:
+        return out
+    if type_name == "Objective":
+        for kpi in _matching("KPI", "objective", object_id):
+            r = upsert("KPI", {"tenant": tenant}, actor, reason, object_id=kpi["id"])
+            if r.ok:
+                moved["kpis"].append(kpi["id"])
+            else:
+                logger.warning("KPI %s did not follow objective %s: %s", kpi["id"], object_id, r.error)
+    if type_name in ("Objective", "KPI"):
+        field = "objective" if type_name == "Objective" else "kpi"
+        for lane in _matching("Swimlane", field, object_id):
+            if lane.get("data", {}).get("tenant") == tenant:
+                continue
+            r = upsert("Swimlane", {field: None}, actor, reason, object_id=lane["id"])
+            if r.ok:
+                moved["lanes_unlinked"].append(lane["id"])
+        for kpi_id in moved["kpis"]:
+            for lane in _matching("Swimlane", "kpi", kpi_id):
+                if lane.get("data", {}).get("tenant") != tenant:
+                    r = upsert("Swimlane", {"kpi": None}, actor, reason, object_id=lane["id"])
+                    if r.ok:
+                        moved["lanes_unlinked"].append(lane["id"])
+    result = dict(out.data)
+    result["moved"] = moved
+    return StoreResult(True, result)

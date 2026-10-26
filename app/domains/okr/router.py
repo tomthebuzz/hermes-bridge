@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path
 
 from . import service
-from .schemas import CheckinRequest, DeleteRequest, LinkRequest, StoreResponse, UpsertRequest
+from .schemas import CheckinRequest, DeleteRequest, LinkRequest, MoveRequest, StoreResponse, UpsertRequest
 
 router = APIRouter()
 
@@ -48,6 +48,14 @@ def link_objects(body: LinkRequest) -> StoreResponse:
 def delete_object(object_id: ObjectIdPath, body: DeleteRequest) -> StoreResponse:
     _guard()
     return _respond(service.delete(object_id, body.actor, body.reason), body)
+
+
+@router.post("/objects/{object_id}/move", response_model=StoreResponse)
+def move_object(object_id: ObjectIdPath, body: MoveRequest) -> StoreResponse:
+    """Objective (with key results and its KPIs), KPI, source or swimlane
+    to another team."""
+    _guard()
+    return _respond(service.move(object_id, body.tenant, body.actor, body.reason), body)
 
 
 @router.post("/checkin", response_model=StoreResponse)

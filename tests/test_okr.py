@@ -15,7 +15,9 @@ def store(monkeypatch):
     calls: list[tuple[str, ...]] = []
     objects = {"keyresult_abc123": {"id": "keyresult_abc123", "type": "KeyResult", "data": {"title": "Leads", "current": 3}},
                "kpi_abc123": {"id": "kpi_abc123", "type": "KPI", "data": {"title": "Open", "current": 9}},
-               "objective_abc123": {"id": "objective_abc123", "type": "Objective", "data": {"tenant": "tech"}}}
+               "objective_abc123": {"id": "objective_abc123", "type": "Objective", "data": {"tenant": "tech"}},
+               "kpi_f0110a5": {"id": "kpi_f0110a5", "type": "KPI", "data": {"tenant": "tech", "objective": "objective_abc123"}},
+               "swimlane_01d001": {"id": "swimlane_01d001", "type": "Swimlane", "data": {"tenant": "tech", "name": "Speed", "objective": "objective_abc123"}}}
 
     def fake_run(*args):
         calls.append(args)
@@ -32,6 +34,9 @@ def store(monkeypatch):
             return service.StoreResult(True, {"rel": a["--rel"], "from": a["--from"], "to": a["--to"]})
         if args[0] == "delete":
             return service.StoreResult(True, {"deleted": a["--id"]})
+        if args[0] == "search":
+            items = [o for o in objects.values() if o["type"] == a["--type"] and a.get("--text", "") in json.dumps(o["data"])]
+            return service.StoreResult(True, {"count": len(items), "items": items})
         raise AssertionError(args)
 
     monkeypatch.setattr(service, "_run", fake_run)
@@ -91,3 +96,22 @@ def test_delete(client, store):
     calls, _ = store
     r = client.post("/okr/objects/objective_abc123/delete", json={"actor": "Anna", "reason": "cleanup"})
     assert r.status_code == 200 and calls[0][:3] == ("delete", "--id", "objective_abc123")
+
+
+def test_move_objective_takes_its_kpis_and_unlinks_old_lanes(client, store):
+    calls, objects = store
+    r = client.post("/okr/objects/objective_abc123/move", json={"tenant": "ops", "actor": "Anna", "reason": "belongs to ops"})
+    assert r.status_code == 200, r.text
+    assert objects["objective_abc123"]["data"]["tenant"] == "ops"
+    assert objects["kpi_f0110a5"]["data"]["tenant"] == "ops" and objects["kpi_f0110a5"]["data"]["objective"] == "objective_abc123"
+    assert objects["swimlane_01d001"]["data"]["objective"] is None and objects["swimlane_01d001"]["data"]["tenant"] == "tech"
+    assert r.json()["object"]["moved"] == {"kpis": ["kpi_f0110a5"], "lanes_unlinked": ["swimlane_01d001"]}
+
+
+def test_move_kpi_alone_leaves_its_objective_and_key_results_cannot_move(client, store):
+    calls, objects = store
+    r = client.post("/okr/objects/kpi_f0110a5/move", json={"tenant": "ops", "actor": "Anna", "reason": "x"})
+    assert r.status_code == 200 and objects["kpi_f0110a5"]["data"] == {"tenant": "ops", "objective": None}
+    assert client.post("/okr/objects/keyresult_abc123/move", json={"tenant": "ops", "actor": "Anna", "reason": "x"}).status_code == 502
+    assert client.post("/okr/objects/objective_abc123/move", json={"tenant": "tech", "actor": "Anna", "reason": "x"}).status_code == 502
+    assert client.post("/okr/objects/objective_abc123/move", json={"tenant": "Bad Team", "actor": "Anna", "reason": "x"}).status_code == 422

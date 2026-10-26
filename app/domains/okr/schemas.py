@@ -10,7 +10,7 @@ ObjectId = Field(pattern=r"^[a-z]+_[0-9a-f]{6,40}$")
 
 
 class UpsertRequest(SanitizedModel):
-    type: str = Field(pattern=r"^(Objective|KeyResult|KPI|Source|TaskLink|TaskThread)$")
+    type: str = Field(pattern=r"^(Objective|KeyResult|KPI|Source|Swimlane|TaskLane|TaskLink|TaskThread)$")
     id: str | None = Field(default=None, pattern=r"^[a-z]+_[0-9a-f]{6,40}$")
     data: dict
     # a new KeyResult is linked to this objective in the same call
@@ -28,6 +28,12 @@ class LinkRequest(SanitizedModel):
 
 
 class DeleteRequest(SanitizedModel):
+    actor: str = Actor
+    reason: str = Reason
+
+
+class MoveRequest(SanitizedModel):
+    tenant: str = Field(min_length=1, max_length=80, pattern=r"^[a-z0-9][a-z0-9_-]*$")
     actor: str = Actor
     reason: str = Reason
 
