@@ -30,6 +30,7 @@ from .core.logging import configure_logging
 from .core.wal_keeper import wal_keeper
 from .domains.kanban.router import router as kanban_router
 from .domains.messaging.router import router as messaging_router
+from .domains.okr.router import router as okr_router
 from .domains.people.router import router as people_router
 
 configure_logging()
@@ -74,3 +75,4 @@ def healthz():
 app.include_router(kanban_router, prefix="/kanban", tags=["kanban"], dependencies=[Depends(require_api_key)])
 app.include_router(messaging_router, prefix="/messaging", tags=["messaging"], dependencies=[Depends(require_api_key)])
 app.include_router(people_router, prefix="/people", tags=["people"], dependencies=[Depends(require_api_key)])
+app.include_router(okr_router, prefix="/okr", tags=["okr"], dependencies=[Depends(require_api_key)])

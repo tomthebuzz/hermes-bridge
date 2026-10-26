@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # bot allowlists, Portal access); /people is refused while unset.
     people_hook: str | None = None
     people_hook_timeout_seconds: float = 180.0
+    # The team store's CLI wrapper (harness-kit connect_ontology.sh writes
+    # ~/.hermes/scripts/ontology-cli-<client>-team.sh); /okr is refused while unset.
+    team_store_cli: str | None = None
+    team_store_timeout_seconds: float = 60.0
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"

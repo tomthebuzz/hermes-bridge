@@ -23,6 +23,27 @@ def strip_hidden(text: str) -> tuple[str, int]:
     return _HIDDEN.subn("", text)
 
 
+def _strip_deep(value):
+    """Strings inside nested dicts and lists too (object data for the team store)."""
+    if isinstance(value, str):
+        return strip_hidden(value)
+    if isinstance(value, dict):
+        total, out = 0, {}
+        for k, v in value.items():
+            cv, n = _strip_deep(v)
+            out[k] = cv
+            total += n
+        return out, total
+    if isinstance(value, list):
+        total, out = 0, []
+        for v in value:
+            cv, n = _strip_deep(v)
+            out.append(cv)
+            total += n
+        return out, total
+    return value, 0
+
+
 class SanitizedModel(BaseModel):
     """A request body whose string fields are stripped of hidden characters
     on validation. `sanitized` tells the router whether anything was removed."""
@@ -34,11 +55,10 @@ class SanitizedModel(BaseModel):
         removed = 0
         for name in type(self).model_fields:
             value = getattr(self, name)
-            if isinstance(value, str):
-                clean, n = strip_hidden(value)
-                if n:
-                    setattr(self, name, clean)
-                    removed += n
+            clean, n = _strip_deep(value)
+            if n:
+                setattr(self, name, clean)
+                removed += n
         self._sanitized = removed > 0
         return self
 
