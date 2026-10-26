@@ -39,7 +39,8 @@ def _task_id_from_create(stdout: str) -> str | None:
 
 
 def create_task(title: str, tenant: str, body: str = "", assignee: str | None = None,
-                status: str = "running", priority: int = 0) -> CLIResult:
+                status: str = "running", priority: int = 0, skills: list[str] | None = None,
+                created_by: str | None = None) -> CLIResult:
     allowed = {"triage", "todo", "ready", "running", "review", "blocked", "done", "archived"}
     if status not in allowed:
         return CLIResult(False, "", f"unsupported initial status: {status}", 2)
@@ -54,6 +55,10 @@ def create_task(title: str, tenant: str, body: str = "", assignee: str | None = 
     args += ["--priority", str(priority), "--json"]
     if assignee:
         args += [f"--assignee={assignee}"]
+    for skill in skills or []:
+        args += ["--skill", skill]
+    if created_by:
+        args += [f"--created-by={created_by}"]
     created = _kanban_with_body(args, body, [title])
     if not created.ok:
         return created

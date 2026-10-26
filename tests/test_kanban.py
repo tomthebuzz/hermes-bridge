@@ -252,3 +252,12 @@ def test_wal_keeper_also_holds_the_team_store(tmp_path, monkeypatch):
     assert (tmp_path / "team.db-wal").exists() and (tmp_path / "team.db-shm").exists()
     keeper.close()
     assert keeper.extra_held == []
+
+
+def test_create_passes_skills_and_creator(client, stub):
+    r = client.post("/kanban/tasks", json={"title": "Weekly review", "tenant": "tech", "status": "ready",
+                                           "skills": ["team-review"], "created_by": "weekly-review"})
+    assert r.status_code == 200, r.text
+    call = next(c for c in stub.calls() if "create" in c)
+    assert call[call.index("--skill") + 1] == "team-review" and "--created-by=weekly-review" in call
+    assert client.post("/kanban/tasks", json={"title": "x", "tenant": "tech", "skills": ["Bad Name"]}).status_code == 422

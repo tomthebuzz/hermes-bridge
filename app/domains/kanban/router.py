@@ -48,7 +48,8 @@ def list_assignees() -> list[str]:
 
 @router.post("/tasks", response_model=BridgeResult)
 def create_task(body: CreateTaskRequest) -> BridgeResult:
-    return _respond(service.create_task(body.title, body.tenant, body.body, body.assignee, body.status, body.priority), body)
+    return _respond(service.create_task(body.title, body.tenant, body.body, body.assignee, body.status, body.priority,
+                                        body.skills, body.created_by), body)
 
 
 @router.patch("/tasks/{task_id}", response_model=BridgeResult)

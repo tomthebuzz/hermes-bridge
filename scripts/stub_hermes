@@ -55,6 +55,7 @@ for flag in ("--assignee", "--tenant", "--priority", "--created-by", "--idempote
 c.add_argument("--triage", action="store_true"); c.add_argument("--json", action="store_true")
 c.add_argument("--initial-status", choices=["blocked", "running"])
 e = sub.add_parser("edit"); e.add_argument("task_id")
+c.add_argument("--skill", action="append", default=[])
 for flag in ("--title", "--body", "--priority", "--result", "--summary", "--metadata"):
     e.add_argument(flag)
 cm = sub.add_parser("comment"); cm.add_argument("task_id"); cm.add_argument("text", nargs="+")
