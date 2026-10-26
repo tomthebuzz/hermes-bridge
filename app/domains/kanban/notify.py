@@ -133,7 +133,7 @@ def post_task_event(task_id: str, text: str, by: str | None = None) -> None:
     if thread is None:
         return
     line = f"{text}" + (f" ({by})" if by else "")
-    names = stakeholder_names(task_id)
+    names = [n for n in stakeholder_names(task_id) if n != by]   # the actor needs no ping
     if names:
         line += " · " + ", ".join(names)
     _send(thread.get("profile"), f"matrix:{thread['room']}:{thread['event']}", line)

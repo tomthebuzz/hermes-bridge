@@ -70,11 +70,13 @@ def test_portal_actions_are_posted_into_the_thread_with_stakeholders(client, stu
     objects["tasklink_2"] = {"id": "tasklink_2", "type": "TaskLink", "data": {"task_id": "t_other", "person": "Nobody", "role": "watcher"}}
     thread = next(o for o in objects.values() if o["type"] == "TaskThread")["data"]["event_id"]
     assert client.post(f"/kanban/tasks/{task_id}/comments", json={"text": "looks fine", "author": "Tom"}).status_code == 200
+    assert client.post(f"/kanban/tasks/{task_id}/comments", json={"text": "mine", "author": "Anna Keller"}).status_code == 200
     assert client.post(f"/kanban/tasks/{task_id}/transition", json={"status": "blocked", "current_status": "ready", "reason": "waiting"}).status_code == 200
     posts = sends(stub)[1:]
     assert all(c[c.index("--to") + 1] == f"matrix:!tech:hs:{thread}" for c in posts)
     assert posts[0][-1] == "Comment: looks fine (Tom) · Anna Keller"
-    assert posts[1][-1] == "Moved to blocked: waiting · Anna Keller"
+    assert posts[1][-1] == "Comment: mine (Anna Keller)"            # the actor is not pinged
+    assert posts[2][-1] == "Moved to blocked: waiting · Anna Keller"
     assert "Nobody" not in posts[0][-1]
 
 
