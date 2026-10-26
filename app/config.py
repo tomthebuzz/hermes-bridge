@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # ~/.hermes/scripts/ontology-cli-<client>-team.sh); /okr is refused while unset.
     team_store_cli: str | None = None
     team_store_timeout_seconds: float = 60.0
+    # The team store's SQLite file, held open like the board DB so the
+    # Portal's read-only reads keep working between the CLI's writes.
+    team_db_path: str | None = None
 
     class Config:
         env_prefix = "HERMES_BRIDGE_"

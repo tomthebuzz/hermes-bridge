@@ -230,3 +230,25 @@ def test_assign_separates_options(client, stub, create):
     task_id = create()
     assert client.post(f"/kanban/tasks/{task_id}/assign", json={"assignee": "tech"}).status_code == 200
     assert stub.calls()[-1][3:] == ["assign", "--", task_id, "tech"]
+
+
+def test_wal_keeper_also_holds_the_team_store(tmp_path, monkeypatch):
+    import sqlite3
+    from app.config import settings
+    from app.core.wal_keeper import WalKeeper
+    for name in ("kanban.db", "team.db"):
+        with sqlite3.connect(tmp_path / name) as conn:
+            conn.execute("PRAGMA journal_mode=wal")
+            conn.execute("CREATE TABLE t(id TEXT)")
+    monkeypatch.setattr(settings, "kanban_db_path", str(tmp_path / "kanban.db"))
+    monkeypatch.setattr(settings, "team_db_path", str(tmp_path / "team.db"))
+    keeper = WalKeeper()
+    keeper.open()
+    assert keeper.held and keeper.extra_held == [str(tmp_path / "team.db")]
+    writer = sqlite3.connect(tmp_path / "team.db")
+    writer.execute("INSERT INTO t VALUES ('x')")
+    writer.commit()
+    writer.close()
+    assert (tmp_path / "team.db-wal").exists() and (tmp_path / "team.db-shm").exists()
+    keeper.close()
+    assert keeper.extra_held == []

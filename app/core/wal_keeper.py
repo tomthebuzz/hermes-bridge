@@ -29,28 +29,46 @@ class WalKeeper:
     def __init__(self) -> None:
         self._conn: sqlite3.Connection | None = None
         self.path = board_db_path()
+        # The team store (dashboard) has the same readers and the same
+        # short-lived writers (the store's CLI in Docker), so it is held too.
+        self.extra_paths = [Path(settings.team_db_path).expanduser()] if settings.team_db_path else []
+        self._extra: dict[Path, sqlite3.Connection] = {}
 
     @property
     def held(self) -> bool:
         return self._conn is not None
 
-    def open(self) -> None:
+    @property
+    def extra_held(self) -> list[str]:
+        return [str(p) for p in self._extra]
+
+    @staticmethod
+    def _hold(path: Path) -> sqlite3.Connection | None:
         try:
-            # mode=rw: never create a missing DB; the board must already exist.
-            conn = sqlite3.connect(f"file:{self.path}?mode=rw", uri=True, timeout=5.0,
-                                   check_same_thread=False)
+            # mode=rw: never create a missing DB; it must already exist.
+            conn = sqlite3.connect(f"file:{path}?mode=rw", uri=True, timeout=5.0, check_same_thread=False)
             conn.execute("PRAGMA query_only = 1")
             conn.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchall()
         except sqlite3.Error as e:
-            logger.warning("not holding %s open (%s); Portal reads may fail between writes", self.path, e)
-            return
-        self._conn = conn
-        logger.info("holding %s open to keep its WAL files", self.path)
+            logger.warning("not holding %s open (%s); Portal reads may fail between writes", path, e)
+            return None
+        logger.info("holding %s open to keep its WAL files", path)
+        return conn
+
+    def open(self) -> None:
+        self._conn = self._hold(self.path)
+        for p in self.extra_paths:
+            conn = self._hold(p)
+            if conn is not None:
+                self._extra[p] = conn
 
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+        for conn in self._extra.values():
+            conn.close()
+        self._extra = {}
 
 
 wal_keeper = WalKeeper()

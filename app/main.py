@@ -62,6 +62,8 @@ def diagnostics():
         "kanban_board": settings.kanban_board,
         "kanban_db": str(wal_keeper.path),
         "kanban_db_held_open": wal_keeper.held,
+        "team_store_cli": settings.team_store_cli,
+        "team_db_held_open": wal_keeper.extra_held,
     }
 
 
