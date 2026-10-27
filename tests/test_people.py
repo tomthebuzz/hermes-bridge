@@ -44,6 +44,18 @@ def test_add_update_remove_pass_validated_argv(hook):
                       ["update", "ana", "tech", "-"], ["remove", "ana"]]
 
 
+def test_language_rides_along_only_when_given_and_has_its_own_route(hook):
+    c = TestClient(app)
+    assert c.post("/people", headers=H, json={"localpart": "ana", "name": "Ana", "tenants": ["tech"], "language": "de"}).status_code == 200
+    assert c.put("/people/ana", headers=H, json={"tenants": ["tech"], "language": "en"}).status_code == 200
+    assert c.put("/people/ana/language", headers=H, json={"language": "de"}).status_code == 200
+    assert c.put("/people/ana/language", headers=H, json={"language": ""}).status_code == 200
+    assert c.put("/people/ana/language", headers=H, json={"language": "de-CH"}).status_code == 422
+    assert c.put("/people/ana", headers=H, json={"tenants": ["tech"], "language": "x;y"}).status_code == 422
+    assert hook() == [["add", "ana", "Ana", "tech", "-", "de"], ["update", "ana", "tech", "-", "en"],
+                      ["language", "ana", "de"], ["language", "ana", "-"]]
+
+
 @pytest.mark.parametrize("body", [
     {"localpart": "Ana", "name": "A", "tenants": ["tech"]},
     {"localpart": "ana;rm", "name": "A", "tenants": ["tech"]},

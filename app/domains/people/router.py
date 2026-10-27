@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path
 
 from . import service
-from .schemas import LOCALPART, TENANT, AddPersonRequest, PersonResult, UpdatePersonRequest
+from .schemas import LOCALPART, TENANT, AddPersonRequest, LanguageRequest, PersonResult, UpdatePersonRequest
 
 router = APIRouter()
 Localpart = Annotated[str, Path(pattern=LOCALPART)]
@@ -34,13 +34,22 @@ def _require_enabled() -> None:
 @router.post("", response_model=PersonResult)
 def add_person(body: AddPersonRequest) -> PersonResult:
     _require_enabled()
-    return _result(service.run("add", body.localpart, body.name, _csv(body.tenants), _csv(body.approve)))
+    extra = [body.language] if body.language else []     # positional, only when given (older hooks take four)
+    return _result(service.run("add", body.localpart, body.name, _csv(body.tenants), _csv(body.approve), *extra))
 
 
 @router.put("/{localpart}", response_model=PersonResult)
 def update_person(localpart: Localpart, body: UpdatePersonRequest) -> PersonResult:
     _require_enabled()
-    return _result(service.run("update", localpart, _csv(body.tenants), _csv(body.approve)))
+    extra = [body.language] if body.language else []
+    return _result(service.run("update", localpart, _csv(body.tenants), _csv(body.approve), *extra))
+
+
+@router.put("/{localpart}/language", response_model=PersonResult)
+def set_language(localpart: Localpart, body: LanguageRequest) -> PersonResult:
+    """Only the person's UI language; the hook touches no rooms and restarts nothing."""
+    _require_enabled()
+    return _result(service.run("language", localpart, body.language or "-"))
 
 
 @router.delete("/{localpart}", response_model=PersonResult)
