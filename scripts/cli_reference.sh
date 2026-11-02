@@ -4,6 +4,9 @@
 # part of that file (the observed-behaviour notes above it are kept); with
 # --check it only diffs, and exits 1 when the installed Hermes differs, e.g.
 # after `hermes update`. Re-check the bridge (and scripts/stub_hermes) then.
+# --check skips the top-level `hermes --help` (its command list changes with
+# every release and the bridge calls none of those commands directly). Home
+# directories are written as ~ so the reference is the same on every host.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DOC=docs/cli-reference.md
@@ -12,7 +15,7 @@ VERBS=(create edit attach comment claim assign promote reclaim reopen-review blo
        request-review request-changes complete archive specify assignees notify-subscribe)
 
 render() {
-  section() { printf '\n## `%s` --help\n\n```\n' "$1"; shift; "$HERMES" "$@" --help 2>&1 | sed 's/[[:space:]]*$//'; printf '```\n'; }
+  section() { printf '\n## `%s` --help\n\n```\n' "$1"; shift; "$HERMES" "$@" --help 2>&1 | sed 's/[[:space:]]*$//' | sed "s#${HOME}#~#g"; printf '```\n'; }
   section "hermes" ; section "hermes kanban" kanban; section "hermes kanban boards" kanban boards
   section "hermes send" send
   for v in "${VERBS[@]}"; do section "hermes kanban $v" kanban "$v"; done
@@ -20,12 +23,14 @@ render() {
 
 HEAD="$(sed -n '1,/^## `hermes` --help/p' "$DOC" | sed '$d')"
 NEW="$(render)"
+# the sections the bridge depends on: from `hermes kanban` to the end
+used() { sed -n '/^## `hermes kanban` --help/,$p' | sed 's/[[:space:]]*$//'; }
 if [[ "${1:-}" == --check ]]; then
-  if diff <(sed -n '/^## `hermes` --help/,$p' "$DOC" | sed 's/[[:space:]]*$//') <(printf '%s\n' "$NEW" | sed '1d') >/dev/null; then
+  if diff <(used < "$DOC") <(printf '%s\n' "$NEW" | used) >/dev/null; then
     echo "hermes CLI matches $DOC ($("$HERMES" --version 2>/dev/null | head -1))"
   else
     echo "hermes CLI differs from $DOC:" >&2
-    diff <(sed -n '/^## `hermes` --help/,$p' "$DOC" | sed 's/[[:space:]]*$//') <(printf '%s\n' "$NEW" | sed '1d') | head -40 >&2
+    diff <(used < "$DOC") <(printf '%s\n' "$NEW" | used) | head -40 >&2
     exit 1
   fi
 else

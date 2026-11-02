@@ -392,7 +392,7 @@ usage: hermes send [-h] [-t TARGET] [-f PATH] [-s LINE]
                    [--mention PHONE_OR_JID] [-l] [-q] [--json]
                    [message]
 
-Pipe text from any shell script to any messaging platform Hermes is already configured for. Reuses the gateway's platform credentials (/Users/lobsy/.hermes/.env + /Users/lobsy/.hermes/config.yaml) — no LLM, no agent loop, no running gateway required for bot-token platforms like Telegram/Discord/Slack/Signal.
+Pipe text from any shell script to any messaging platform Hermes is already configured for. Reuses the gateway's platform credentials (~/.hermes/.env + ~/.hermes/config.yaml) — no LLM, no agent loop, no running gateway required for bot-token platforms like Telegram/Discord/Slack/Signal.
 
 positional arguments:
   message               Message text. If omitted, read from --file or stdin.
